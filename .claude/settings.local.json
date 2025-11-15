@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout:*)",
+      "Bash(npm init -y)",
+      "Bash(npm install:*)",
+      "Bash(npm run start)",
+      "Bash(cat:*)",
+      "Bash(npm run dev)",
+      "Bash(tree:*)",
+      "Bash(node:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
