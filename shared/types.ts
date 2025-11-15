@@ -31,6 +31,6 @@ export type CandleInterval =
   | '1h' | '2h' | '4h' | '8h' | '12h'
   | '1d' | '3d' | '1w' | '1M';
 
-export type CryptoSymbol = 'BTC' | 'ETH' | 'SOL' | 'MATIC' | string;
+export type CryptoSymbol = 'BTC' | 'ETH' | string;
 
 export type CandleInsert = Omit<Candle, 'id' | 'created_at'>;
