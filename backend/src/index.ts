@@ -2,7 +2,7 @@ import * as hl from '@nktkas/hyperliquid';
 import { config } from './config.js';
 import { upsertCandle } from './supabase.js';
 import { transformCandle } from './transformer.js';
-import type { HyperliquidCandle } from './types.js';
+import type { HyperliquidCandle, CandleInterval } from './types.js';
 
 async function main() {
   console.log('Starting Hyperliquid WebSocket to Supabase ingestion...');
@@ -18,7 +18,7 @@ async function main() {
     console.log(`Subscribing to ${symbol} ${config.hyperliquid.interval} candles...`);
 
     await subscriptionClient.candle(
-      { coin: symbol, interval: config.hyperliquid.interval },
+      { coin: symbol, interval: config.hyperliquid.interval as CandleInterval },
       async (candle: HyperliquidCandle) => {
         try {
           const transformed = transformCandle(candle);
@@ -35,9 +35,8 @@ async function main() {
   console.log('---');
   console.log('All subscriptions active. Listening for candles...');
 
-  process.on('SIGINT', async () => {
+  process.on('SIGINT', () => {
     console.log('\nShutting down gracefully...');
-    await subscriptionClient.disconnect();
     process.exit(0);
   });
 }
