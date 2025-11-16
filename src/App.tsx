@@ -3,15 +3,15 @@ import './App.css';
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Aurum Financial Dashboard
-          </h1>
+    <div className="min-h-screen bg-zinc-950">
+      <header className="border-b border-zinc-800 py-6">
+        <div className="max-w-screen-2xl mx-auto px-8">
+          <h1 className="text-2xl font-light text-zinc-100">Aurum</h1>
+          <p className="text-sm text-zinc-500 mt-1">Crypto Market Data</p>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 py-8">
+
+      <main className="max-w-screen-2xl mx-auto px-8 py-12">
         <TestConnection />
       </main>
     </div>

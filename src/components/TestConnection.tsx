@@ -1,11 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
-import { ConnectionStatus } from './ConnectionStatus';
 import { CandleDataDisplay } from './CandleDataDisplay';
 import { TroubleshootingGuide } from './TroubleshootingGuide';
 import type { Candle } from '../types/database';
 
-const CANDLES_LIMIT = 5;
+const CANDLES_LIMIT = 10;
 
 async function fetchLatestCandles(): Promise<Candle[]> {
   const { data, error } = await supabase
@@ -22,23 +21,16 @@ async function fetchLatestCandles(): Promise<Candle[]> {
 }
 
 export function TestConnection() {
-  const { data: candles, isSuccess, isError, error } = useSupabaseQuery(fetchLatestCandles);
+  const { data: candles, isSuccess, isError } = useSupabaseQuery(fetchLatestCandles);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Supabase Connection Test</h2>
-
-      <ConnectionStatus
-        isSuccess={isSuccess}
-        isError={isError}
-        error={error}
-      />
-
+    <div>
       {isSuccess && (
         <>
-          <p className="mt-2 text-gray-700">
-            Found {candles?.length || 0} candles in database
-          </p>
+          <div className="mb-6 flex items-baseline gap-3">
+            <h2 className="text-zinc-300 font-light">Market Data</h2>
+            <span className="text-zinc-600 text-sm">{candles?.length || 0} candles</span>
+          </div>
           <CandleDataDisplay candles={candles || []} />
         </>
       )}
