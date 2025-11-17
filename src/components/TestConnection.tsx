@@ -27,11 +27,10 @@ export function TestConnection() {
     <div>
       {isSuccess && (
         <>
-          <div className="mb-6 flex items-baseline gap-3">
-            <h2 className="text-zinc-300 font-light">Market Data</h2>
-            <span className="text-zinc-600 text-sm">{candles?.length || 0} candles</span>
-          </div>
           <CandleDataDisplay candles={candles || []} />
+          <div className="mt-3 px-4 text-sm text-gray-500">
+             {candles?.length || 0} candles
+          </div>
         </>
       )}
 

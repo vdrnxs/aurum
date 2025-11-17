@@ -9,7 +9,7 @@ export function CandleDataDisplay({ candles }: CandleDataDisplayProps) {
   if (candles.length === 0) {
     return (
       <div className="py-24 text-center">
-        <p className="text-zinc-600 text-sm">No data available</p>
+        <p className="text-sm text-gray-500">No data available</p>
       </div>
     );
   }
@@ -24,49 +24,55 @@ export function CandleDataDisplay({ candles }: CandleDataDisplayProps) {
   });
 
   return (
-    <div className="w-full">
-      <Table>
-        <TableHead>
-          <TableRow className="border-b border-zinc-800">
-            <TableHeaderCell className="text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-20">Symbol</TableHeaderCell>
-            <TableHeaderCell className="text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-24">Interval</TableHeaderCell>
-            <TableHeaderCell className="text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-40">Time</TableHeaderCell>
-            <TableHeaderCell className="text-right text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-32">Open</TableHeaderCell>
-            <TableHeaderCell className="text-right text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-32">High</TableHeaderCell>
-            <TableHeaderCell className="text-right text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-32">Low</TableHeaderCell>
-            <TableHeaderCell className="text-right text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-32">Close</TableHeaderCell>
-            <TableHeaderCell className="text-right text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-28">Change</TableHeaderCell>
-            <TableHeaderCell className="text-right text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-32">Volume</TableHeaderCell>
-            <TableHeaderCell className="text-right text-zinc-400 font-normal text-xs uppercase tracking-wider py-4 w-24">Trades</TableHeaderCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {candles.map((candle) => {
-            const priceChange = candle.close - candle.open;
-            const priceChangePercent = ((priceChange / candle.open) * 100).toFixed(2);
-            const isPositive = priceChange >= 0;
+    <div className="overflow-x-auto">
+      <div className="w-full overflow-auto whitespace-nowrap">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableHeaderCell>Symbol</TableHeaderCell>
+              <TableHeaderCell>Interval</TableHeaderCell>
+              <TableHeaderCell>Time</TableHeaderCell>
+              <TableHeaderCell className="text-right">Open</TableHeaderCell>
+              <TableHeaderCell className="text-right">High</TableHeaderCell>
+              <TableHeaderCell className="text-right">Low</TableHeaderCell>
+              <TableHeaderCell className="text-right">Close</TableHeaderCell>
+              <TableHeaderCell className="text-right">Change</TableHeaderCell>
+              <TableHeaderCell className="text-right">Volume</TableHeaderCell>
+              <TableHeaderCell className="text-right">Trades</TableHeaderCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {candles.map((candle) => {
+              const priceChange = candle.close - candle.open;
+              const priceChangePercent = ((priceChange / candle.open) * 100).toFixed(2);
+              const isPositive = priceChange >= 0;
 
-            return (
-              <TableRow key={candle.id} className="border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors">
-                <TableCell className="text-zinc-100 font-medium py-5">{candle.symbol}</TableCell>
-                <TableCell className="text-zinc-300 text-sm py-5">{candle.interval}</TableCell>
-                <TableCell className="text-zinc-400 text-sm py-5">{formatDate(candle.open_time)}</TableCell>
-                <TableCell className="text-right text-zinc-200 font-mono text-sm py-5">{formatPrice(candle.open)}</TableCell>
-                <TableCell className="text-right text-teal-400 font-mono text-sm py-5">{formatPrice(candle.high)}</TableCell>
-                <TableCell className="text-right text-red-400 font-mono text-sm py-5">{formatPrice(candle.low)}</TableCell>
-                <TableCell className="text-right text-zinc-100 font-mono text-sm font-medium py-5">{formatPrice(candle.close)}</TableCell>
-                <TableCell className="text-right py-5">
-                  <span className={`font-mono text-sm font-medium ${isPositive ? 'text-teal-400' : 'text-red-400'}`}>
-                    {isPositive ? '+' : ''}{priceChangePercent}%
-                  </span>
-                </TableCell>
-                <TableCell className="text-right text-zinc-400 font-mono text-sm py-5">{formatVolume(candle.volume)}</TableCell>
-                <TableCell className="text-right text-zinc-500 text-sm py-5">{candle.trades_count}</TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+              return (
+                <TableRow key={candle.id}>
+                  <TableCell>{candle.symbol}</TableCell>
+                  <TableCell>{candle.interval}</TableCell>
+                  <TableCell>{formatDate(candle.open_time)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatPrice(candle.open)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-emerald-600">
+                    {formatPrice(candle.high)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-red-600">
+                    {formatPrice(candle.low)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatPrice(candle.close)}</TableCell>
+                  <TableCell className="text-right">
+                    <span className={`font-mono tabular-nums ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {isPositive ? '+' : ''}{priceChangePercent}%
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatVolume(candle.volume)}</TableCell>
+                  <TableCell className="text-right">{candle.trades_count}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

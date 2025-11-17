@@ -7,26 +7,26 @@ interface ConnectionStatusProps {
 export function ConnectionStatus({ isSuccess, isError, error }: ConnectionStatusProps) {
   if (isSuccess) {
     return (
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-teal-500/10 border border-teal-500/30 rounded-lg">
-        <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
-        <span className="text-teal-400 text-xs font-medium uppercase tracking-wider">Live</span>
+      <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 dark:border-emerald-400/30 dark:bg-emerald-500/10">
+        <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400" />
+        <span className="text-xs font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Live</span>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="text-red-400">
+      <div className="text-red-600 dark:text-red-400">
         <p className="font-medium">Connection failed</p>
-        <p className="text-sm mt-1">Error: {error}</p>
+        <p className="mt-1 text-sm">Error: {error}</p>
       </div>
     );
   }
 
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-800/50 border border-zinc-700 rounded-lg">
-      <div className="w-2 h-2 bg-zinc-600 rounded-full" />
-      <span className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Connecting</span>
+    <div className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 dark:border-gray-700 dark:bg-gray-800/50">
+      <div className="h-2 w-2 rounded-full bg-gray-400 dark:bg-gray-600" />
+      <span className="text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-500">Connecting</span>
     </div>
   );
 }
