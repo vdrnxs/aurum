@@ -40,24 +40,16 @@ export function useCandles(
   );
 
   const fetchCandles = useCallback(async () => {
-    console.log('🔵 useCandles: Starting fetch...', { symbol, interval, limit });
     try {
       setLoading(true);
       setError(null);
 
-      console.log('🔵 useCandles: Calling DataService.getCandles...');
       const result: DataServiceResult = await DataService.getCandles(
         symbol,
         interval,
         limit,
         dataServiceOptions
       );
-
-      console.log('✅ useCandles: Got result', {
-        candlesCount: result.candles.length,
-        source: result.source,
-        isFresh: result.isFresh,
-      });
 
       setCandles(result.candles);
       setDataInfo({
@@ -69,10 +61,7 @@ export function useCandles(
       const errorMessage =
         err instanceof Error ? err.message : 'Error loading candles';
       setError(errorMessage);
-      console.error('❌ useCandles ERROR:', err);
-      console.error('❌ Error details:', errorMessage);
     } finally {
-      console.log('🔵 useCandles: Setting loading to false');
       setLoading(false);
     }
   }, [symbol, interval, limit, optionsKey]);
