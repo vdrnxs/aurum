@@ -7,7 +7,7 @@ function App() {
   return (
     <AppLayout
       title="Aurum Dashboard"
-      subtitle="Technical Indicators for BTC 1h"
+      subtitle="Technical Indicators for BTC 1h - Auto Deploy Test"
     >
       <SimpleIndicators />
     </AppLayout>
