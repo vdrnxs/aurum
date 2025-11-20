@@ -103,21 +103,3 @@ export function useCandles(
     refetch: fetchCandles,
   };
 }
-
-export function useCandlesWithIndicators(
-  symbol: CryptoSymbol,
-  interval: CandleInterval,
-  limit: number = 100,
-  options: UseCandlesOptions = {}
-) {
-  const result = useCandles(symbol, interval, limit, options);
-
-  const cacheInfo = result.candles
-    ? DataService.getCacheInfo(result.candles)
-    : null;
-
-  return {
-    ...result,
-    cacheInfo,
-  };
-}

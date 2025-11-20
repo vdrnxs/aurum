@@ -125,40 +125,4 @@ export class DataService {
     }
   }
 
-  static async getCandlesWithIndicators(
-    symbol: CryptoSymbol,
-    interval: CandleInterval,
-    limit: number = 100,
-    options: DataServiceOptions = {}
-  ) {
-    const result = await this.getCandles(symbol, interval, limit, options);
-
-    return result;
-  }
-
-  static getCacheInfo(candles: Candle[]) {
-    if (candles.length === 0) {
-      return {
-        isEmpty: true,
-        latestTimestamp: null,
-        oldestTimestamp: null,
-        ageMs: null,
-        isToday: false,
-      };
-    }
-
-    const latestCandle = candles[candles.length - 1];
-    const oldestCandle = candles[0];
-    const now = Date.now();
-    const ageMs = now - latestCandle.open_time;
-
-    return {
-      isEmpty: false,
-      latestTimestamp: latestCandle.open_time,
-      oldestTimestamp: oldestCandle.open_time,
-      ageMs,
-      isToday: HyperliquidService.isToday(latestCandle.open_time),
-      latestDate: new Date(latestCandle.open_time).toLocaleString(),
-    };
-  }
 }

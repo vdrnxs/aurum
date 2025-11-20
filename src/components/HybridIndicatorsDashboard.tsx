@@ -70,10 +70,10 @@ export function HybridIndicatorsDashboard({
   };
 
   const getTrendBadge = () => {
-    if (latest.price > latest.sma20) {
-      return <Badge color="green">Above SMA20</Badge>;
+    if (latest.price > latest.sma100) {
+      return <Badge color="green">Above SMA100</Badge>;
     }
-    return <Badge color="red">Below SMA20</Badge>;
+    return <Badge color="red">Below SMA100</Badge>;
   };
 
   const getSourceBadge = () => {
@@ -126,8 +126,8 @@ export function HybridIndicatorsDashboard({
         </Card>
 
         <Card>
-          <Text>SMA (20)</Text>
-          <Metric>${latest.sma20.toFixed(2)}</Metric>
+          <Text>SMA (100)</Text>
+          <Metric>${latest.sma100.toFixed(2)}</Metric>
           <Flex className="mt-2">{getTrendBadge()}</Flex>
         </Card>
 

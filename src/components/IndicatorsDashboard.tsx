@@ -65,7 +65,7 @@ export function IndicatorsDashboard({
   const currentPrice = candles![candles!.length - 1].close;
   const latestRSI = indicators.rsi14[indicators.rsi14.length - 1];
   const latestMACD = indicators.macd[indicators.macd.length - 1];
-  const latestSMA20 = indicators.sma20[indicators.sma20.length - 1];
+  const latestSMA100 = indicators.sma100[indicators.sma100.length - 1];
 
   const getRSIColor = (value: number) => {
     if (value >= 70) return 'red';
@@ -80,10 +80,10 @@ export function IndicatorsDashboard({
   };
 
   const getTrendBadge = () => {
-    if (currentPrice > latestSMA20.value) {
-      return <Badge color="green">Above SMA20</Badge>;
+    if (currentPrice > latestSMA100.value) {
+      return <Badge color="green">Above SMA100</Badge>;
     }
-    return <Badge color="red">Below SMA20</Badge>;
+    return <Badge color="red">Below SMA100</Badge>;
   };
 
   return (
@@ -102,8 +102,8 @@ export function IndicatorsDashboard({
         </Card>
 
         <Card>
-          <Text>SMA (20)</Text>
-          <Metric>${latestSMA20.value.toFixed(2)}</Metric>
+          <Text>SMA (100)</Text>
+          <Metric>${latestSMA100.value.toFixed(2)}</Metric>
           <Flex className="mt-2">{getTrendBadge()}</Flex>
         </Card>
 
@@ -145,7 +145,7 @@ export function IndicatorsDashboard({
         <Title>Summary</Title>
         <div className="mt-4 space-y-2">
           <Text>Total candles analyzed: {candles?.length || 0}</Text>
-          <Text>SMA values: {indicators.sma20.length}</Text>
+          <Text>SMA values: {indicators.sma100.length}</Text>
           <Text>RSI values: {indicators.rsi14.length}</Text>
           <Text>MACD values: {indicators.macd.length}</Text>
         </div>
