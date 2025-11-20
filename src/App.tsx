@@ -1,11 +1,14 @@
-import { DashboardLayout } from './layouts/DashboardLayout';
+import { AppLayout } from './layouts/AppLayout';
 import { SimpleIndicators } from './components/SimpleIndicators';
 
 function App() {
   return (
-    <DashboardLayout>
+    <AppLayout
+      title="Aurum Dashboard"
+      subtitle="Technical Indicators for BTC 1h"
+    >
       <SimpleIndicators />
-    </DashboardLayout>
+    </AppLayout>
   );
 }
 
