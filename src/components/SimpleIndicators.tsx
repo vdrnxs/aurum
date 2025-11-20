@@ -6,7 +6,7 @@ export function SimpleIndicators() {
   // Hybrid mode: try cache first, fetch from API if stale, save to DB
   const { candles, loading, error, source, isFresh, refetch } = useCandles('BTC', '1h', 100, {
     source: 'auto', // Auto mode: cache first, API if needed
-    maxCacheAgeMs: 2 * 60 * 60 * 1000, // 2 hours (cache is cleaned every 48h)
+    maxCacheAgeMs: 1 * 60 * 60 * 1000, // 1 hour (cache is cleaned daily at 00:00)
   });
   const latest = useLatestIndicators(candles);
 

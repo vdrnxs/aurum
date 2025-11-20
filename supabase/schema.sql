@@ -77,16 +77,17 @@ CREATE POLICY "Allow service role delete"
   USING (true);
 
 -- Comentarios para documentación
-COMMENT ON TABLE candles IS 'Almacena datos OHLCV (candles) de Hyperliquid como cache temporal (48h)';
+COMMENT ON TABLE candles IS 'Almacena datos OHLCV (candles) de Hyperliquid como cache temporal (24h, reset diario a las 00:00)';
 COMMENT ON COLUMN candles.open_time IS 'Timestamp de apertura en milisegundos';
 COMMENT ON COLUMN candles.close_time IS 'Timestamp de cierre en milisegundos';
 COMMENT ON COLUMN candles.interval IS 'Intervalo: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d, 3d, 1w, 1M';
 
 -- ============================================
--- CACHE TEMPORAL: LIMPIEZA AUTOMATICA
+-- CACHE TEMPORAL: LIMPIEZA AUTOMATICA DIARIA
 -- ============================================
--- Esta función borra velas más antiguas de 2 días (48 horas)
--- Supabase actúa como cache temporal, no como almacenamiento histórico
+-- Esta función borra velas más antiguas de 24 horas
+-- Se ejecuta a las 00:00 para hacer reset diario
+-- Supabase actúa como cache temporal, solo almacena datos del día actual
 
 CREATE OR REPLACE FUNCTION cleanup_old_candles()
 RETURNS TABLE(deleted_count BIGINT) AS $$
@@ -94,10 +95,10 @@ DECLARE
   cutoff_time BIGINT;
   rows_deleted BIGINT;
 BEGIN
-  -- Calcular timestamp de hace 48 horas en milisegundos
-  cutoff_time := EXTRACT(EPOCH FROM NOW() - INTERVAL '2 days') * 1000;
+  -- Calcular timestamp de hace 24 horas en milisegundos
+  cutoff_time := EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours') * 1000;
 
-  -- Borrar velas más antiguas de 48 horas
+  -- Borrar velas más antiguas de 24 horas
   DELETE FROM candles
   WHERE open_time < cutoff_time;
 
@@ -105,17 +106,16 @@ BEGIN
   GET DIAGNOSTICS rows_deleted = ROW_COUNT;
 
   -- Log de la operación
-  RAISE NOTICE 'Cleanup executed: deleted % candles older than % (% days ago)',
-    rows_deleted,
-    to_timestamp(cutoff_time / 1000),
-    EXTRACT(EPOCH FROM NOW() - to_timestamp(cutoff_time / 1000)) / 86400;
+  RAISE NOTICE 'Daily cleanup executed at %: deleted % candles older than 24 hours',
+    NOW(),
+    rows_deleted;
 
   RETURN QUERY SELECT rows_deleted;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Comentario de documentación
-COMMENT ON FUNCTION cleanup_old_candles() IS 'Elimina velas más antiguas de 48 horas para mantener DB pequeña';
+COMMENT ON FUNCTION cleanup_old_candles() IS 'Elimina velas más antiguas de 24 horas. Se ejecuta diariamente a las 00:00';
 
 -- ============================================
 -- OPCIÓN A: Ejecutar limpieza manualmente
@@ -129,15 +129,19 @@ COMMENT ON FUNCTION cleanup_old_candles() IS 'Elimina velas más antiguas de 48 
 -- IMPORTANTE: pg_cron requiere activarse en Supabase Dashboard
 -- Database > Extensions > Buscar "pg_cron" > Enable
 --
--- Una vez habilitado, ejecuta este comando para programar limpieza diaria a las 3 AM:
+-- Una vez habilitado, ejecuta este comando para programar limpieza diaria a las 00:00 (medianoche):
 -- SELECT cron.schedule(
---   'cleanup-old-candles-daily',
---   '0 3 * * *',
+--   'cleanup-old-candles-midnight',
+--   '0 0 * * *',
 --   'SELECT cleanup_old_candles()'
 -- );
+--
+-- Nota: El horario usa UTC. Si necesitas medianoche en tu zona horaria:
+-- - España (CET/CEST): '0 23 * * *' (23:00 UTC = 00:00 CET en invierno)
+-- - México (CST): '0 6 * * *' (06:00 UTC = 00:00 CST)
 --
 -- Para ver trabajos programados:
 -- SELECT * FROM cron.job;
 --
 -- Para eliminar el trabajo programado:
--- SELECT cron.unschedule('cleanup-old-candles-daily');
+-- SELECT cron.unschedule('cleanup-old-candles-midnight');

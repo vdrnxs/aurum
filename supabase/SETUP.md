@@ -1,6 +1,6 @@
 # Supabase Setup Guide
 
-This guide explains how to set up the automatic cache cleanup for your Aurum database.
+This guide explains how to set up the automatic **daily cache cleanup** (24h reset) for your Aurum database.
 
 ## 1. Execute the Schema
 
@@ -26,18 +26,25 @@ To enable automatic daily cleanup, you need to activate the pg_cron extension:
 
 ## 3. Schedule Automatic Cleanup (Recommended)
 
-Once pg_cron is enabled, schedule the cleanup to run daily at 3 AM:
+Once pg_cron is enabled, schedule the cleanup to run daily at midnight (00:00):
 
 ```sql
 -- Run this in SQL Editor
 SELECT cron.schedule(
-  'cleanup-old-candles-daily',
-  '0 3 * * *',  -- Cron format: minute hour day month weekday
+  'cleanup-old-candles-midnight',
+  '0 0 * * *',  -- Midnight UTC (adjust for your timezone)
   'SELECT cleanup_old_candles()'
 );
 ```
 
+**Important**: The time is in UTC. Adjust for your timezone:
+- **Spain (CET/CEST)**: `'0 23 * * *'` (23:00 UTC = 00:00 CET in winter)
+- **Mexico City (CST)**: `'0 6 * * *'` (06:00 UTC = 00:00 CST)
+- **New York (EST)**: `'0 5 * * *'` (05:00 UTC = 00:00 EST)
+
 ### Verify Scheduled Job
+
+The `cron.schedule()` command returns a number (the job ID). If you got a number like `7`, it means the job was created successfully!
 
 To check if the job is scheduled correctly:
 
@@ -45,7 +52,11 @@ To check if the job is scheduled correctly:
 SELECT * FROM cron.job;
 ```
 
-You should see an entry for `cleanup-old-candles-daily`.
+You should see an entry for `cleanup-old-candles-midnight` with details like:
+- `jobid`: The number returned (e.g., 7)
+- `schedule`: `0 0 * * *`
+- `command`: `SELECT cleanup_old_candles()`
+- `active`: `t` (true)
 
 ### View Job History
 
@@ -53,7 +64,7 @@ To see execution history and logs:
 
 ```sql
 SELECT * FROM cron.job_run_details
-WHERE jobname = 'cleanup-old-candles-daily'
+WHERE jobname = 'cleanup-old-candles-midnight'
 ORDER BY start_time DESC
 LIMIT 10;
 ```
@@ -102,15 +113,17 @@ setInterval(cleanupCache, 24 * 60 * 60 * 1000);
 To remove the scheduled job:
 
 ```sql
-SELECT cron.unschedule('cleanup-old-candles-daily');
+SELECT cron.unschedule('cleanup-old-candles-midnight');
 ```
 
 ## Cache Configuration Summary
 
-- **Retention period**: 48 hours (2 days)
-- **Fresh threshold**: 2 hours (data older than this triggers API fetch)
-- **Cleanup frequency**: Daily at 3 AM (if using pg_cron)
-- **Storage impact**: DB will stay ~2-5 MB, never grow beyond that
+- **Retention period**: 24 hours (1 day)
+- **Fresh threshold**: 1 hour (data older than this triggers API fetch)
+- **Cleanup frequency**: Daily at 00:00 midnight (if using pg_cron)
+- **Storage impact**: DB will stay ~1-2 MB, never grow beyond that
+- **Candle interval**: 1h (configurable in frontend)
+- **Typical data**: ~100 candles = 4 days of 1h data
 
 ## Monitoring
 
