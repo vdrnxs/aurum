@@ -16,7 +16,7 @@ export interface DataServiceResult {
 }
 
 export class DataService {
-  private static readonly DEFAULT_CACHE_AGE = 24 * 60 * 60 * 1000;
+  private static readonly DEFAULT_CACHE_AGE = 2 * 60 * 60 * 1000; // 2 hours (aligned with 48h cleanup)
 
   static async getCandles(
     symbol: CryptoSymbol,

@@ -3,12 +3,12 @@ import { useCandles } from '../hooks/useCandles';
 import { useLatestIndicators } from '../hooks/useIndicators';
 
 export function SimpleIndicators() {
-  const { candles, loading, error, source, refetch } = useCandles('BTC', '1h', 100, {
-    source: 'cache', // FORZAR usar solo cache (ya tienes 100 velas en DB)
+  // Hybrid mode: try cache first, fetch from API if stale, save to DB
+  const { candles, loading, error, source, isFresh, refetch } = useCandles('BTC', '1h', 100, {
+    source: 'auto', // Auto mode: cache first, API if needed
+    maxCacheAgeMs: 2 * 60 * 60 * 1000, // 2 hours (cache is cleaned every 48h)
   });
   const latest = useLatestIndicators(candles);
-
-  console.log('SimpleIndicators render:', { candles: candles?.length, loading, error, latest });
 
   if (loading) {
     return (
@@ -54,8 +54,15 @@ export function SimpleIndicators() {
       <Card>
         <div className="flex justify-between items-center">
           <Title>BTC Indicators (1h)</Title>
-          <div className="flex gap-2">
-            <Text className="text-sm">Source: {source}</Text>
+          <div className="flex gap-2 items-center">
+            <Text className="text-sm">
+              Source: <span className="font-semibold">{source}</span>
+              {source === 'cache' && (
+                <span className={isFresh ? 'text-green-600' : 'text-orange-600'}>
+                  {' '}({isFresh ? 'fresh' : 'stale'})
+                </span>
+              )}
+            </Text>
             <Button size="xs" onClick={refetch}>Refresh</Button>
           </div>
         </div>

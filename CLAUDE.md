@@ -38,6 +38,14 @@ The `candles` table stores OHLCV data with the following structure:
 - `trades_count` (INTEGER): Number of trades in the candle
 - Unique constraint: `(symbol, interval, open_time)` to prevent duplicates
 
+### Cache Strategy (48h Temporal Cache)
+Supabase acts as a **temporary cache**, not permanent storage:
+- **Retention**: Candles older than 48 hours are automatically deleted
+- **Cleanup**: Automatic daily cleanup via `cleanup_old_candles()` function (pg_cron)
+- **Fresh threshold**: Data is considered fresh for 2 hours
+- **Purpose**: Reduce API calls to Hyperliquid, provide fallback if API is down
+- **DB size**: Always minimal (~2-5 MB), never grows unbounded
+
 ### Row Level Security (RLS)
 - Public read access (anyone with anon key can SELECT)
 - Write access restricted to `service_role` only (backend script)

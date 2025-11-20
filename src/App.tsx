@@ -1,5 +1,7 @@
 import { AppLayout } from './layouts/AppLayout';
 import { SimpleIndicators } from './components/SimpleIndicators';
+//import { HybridIndicatorsDashboard } from './components/HybridIndicatorsDashboard';
+//import { IndicatorsDashboard } from './components/IndicatorsDashboard';
 
 function App() {
   return (
