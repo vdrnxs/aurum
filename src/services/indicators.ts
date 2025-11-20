@@ -1,52 +1,13 @@
-import {
-  sma,
-  ema,
-  rsi,
-  macd,
-  atr,
-  bb,
-  stochasticOscillator,
-  communityChannelIndex,
-} from 'indicatorts';
+import { sma, rsi, macd } from 'indicatorts';
 import type { Candle } from '../types/database';
-import type {
-  SMAResult,
-  EMAResult,
-  RSIResult,
-  MACDResult,
-  BollingerBandsResult,
-  ATRResult,
-  OHLCVData,
-} from '../types/indicators';
+import type { SMAResult, RSIResult, MACDResult } from '../types/indicators';
 
 export class IndicatorService {
-  static candlesToOHLCV(candles: Candle[]): OHLCVData[] {
-    return candles.map((candle) => ({
-      timestamp: candle.open_time,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-      volume: candle.volume,
-    }));
-  }
-
   static calculateSMA(candles: Candle[], period: number = 20): SMAResult[] {
     const closes = candles.map((c) => c.close);
     const smaValues = sma(closes, { period });
 
     return smaValues.map((value, index) => ({
-      timestamp: candles[index + period - 1]?.open_time || 0,
-      value,
-      period,
-    }));
-  }
-
-  static calculateEMA(candles: Candle[], period: number = 20): EMAResult[] {
-    const closes = candles.map((c) => c.close);
-    const emaValues = ema(closes, { period });
-
-    return emaValues.map((value, index) => ({
       timestamp: candles[index + period - 1]?.open_time || 0,
       value,
       period,
@@ -88,73 +49,27 @@ export class IndicatorService {
     }));
   }
 
-  static calculateBollingerBands(
-    candles: Candle[],
-    period: number = 20
-  ): BollingerBandsResult[] {
-    const closes = candles.map((c) => c.close);
-    const bbResult = bb(closes, { period });
-
-    const upper = bbResult.upper;
-    const middle = bbResult.middle;
-    const lower = bbResult.lower;
-
-    return upper.map((upperValue, index) => ({
-      timestamp: candles[index + period - 1]?.open_time || 0,
-      upper: upperValue,
-      middle: middle[index],
-      lower: lower[index],
-    }));
-  }
-
-  static calculateATR(candles: Candle[], period: number = 14): ATRResult[] {
-    const highs = candles.map((c) => c.high);
-    const lows = candles.map((c) => c.low);
-    const closes = candles.map((c) => c.close);
-
-    const atrResult = atr(highs, lows, closes, { period });
-    const atrLine = atrResult.atrLine;
-
-    return atrLine.map((value, index) => ({
-      timestamp: candles[index + period]?.open_time || 0,
-      value,
-      period,
-    }));
-  }
-
-  static calculateStochastic(
-    candles: Candle[],
-    kPeriod: number = 14,
-    dPeriod: number = 3
-  ) {
-    const highs = candles.map((c) => c.high);
-    const lows = candles.map((c) => c.low);
-    const closes = candles.map((c) => c.close);
-
-    return stochasticOscillator(highs, lows, closes, {
-      kPeriod,
-      dPeriod,
-    });
-  }
-
-  static calculateCCI(candles: Candle[], period: number = 20) {
-    const highs = candles.map((c) => c.high);
-    const lows = candles.map((c) => c.low);
-    const closes = candles.map((c) => c.close);
-
-    return communityChannelIndex(highs, lows, closes, { period });
-  }
-
-  static calculateMultipleIndicators(candles: Candle[]) {
+  static calculateAll(candles: Candle[]) {
     return {
-      sma20: this.calculateSMA(candles, 20),
-      sma50: this.calculateSMA(candles, 50),
-      ema12: this.calculateEMA(candles, 12),
-      ema26: this.calculateEMA(candles, 26),
+      sma100: this.calculateSMA(candles, 100),
       rsi14: this.calculateRSI(candles, 14),
-      macd: this.calculateMACD(candles),
-      bb: this.calculateBollingerBands(candles),
-      atr14: this.calculateATR(candles, 14),
+      macd: this.calculateMACD(candles, 24, 52, 9),
+    };
+  }
+
+  static getLatestValues(candles: Candle[]) {
+    const indicators = this.calculateAll(candles);
+    const currentPrice = candles[candles.length - 1].close;
+
+    return {
+      price: currentPrice,
+      sma100: indicators.sma100[indicators.sma100.length - 1]?.value || 0,
+      rsi: indicators.rsi14[indicators.rsi14.length - 1]?.value || 0,
+      macd: {
+        line: indicators.macd[indicators.macd.length - 1]?.macd || 0,
+        signal: indicators.macd[indicators.macd.length - 1]?.signal || 0,
+        histogram: indicators.macd[indicators.macd.length - 1]?.histogram || 0,
+      },
     };
   }
 }

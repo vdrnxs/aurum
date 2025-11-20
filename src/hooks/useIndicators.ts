@@ -4,14 +4,24 @@ import { IndicatorService } from '../services/indicators';
 
 export function useIndicators(candles: Candle[] | null) {
   const indicators = useMemo(() => {
-    if (!candles || candles.length === 0) {
+    if (!candles || candles.length < 50) {
       return null;
     }
 
-    return IndicatorService.calculateMultipleIndicators(candles);
+    return IndicatorService.calculateAll(candles);
   }, [candles]);
 
   return indicators;
+}
+
+export function useLatestIndicators(candles: Candle[] | null) {
+  return useMemo(() => {
+    if (!candles || candles.length < 50) {
+      return null;
+    }
+
+    return IndicatorService.getLatestValues(candles);
+  }, [candles]);
 }
 
 export function useSMA(candles: Candle[] | null, period: number = 20) {
@@ -20,15 +30,6 @@ export function useSMA(candles: Candle[] | null, period: number = 20) {
       return null;
     }
     return IndicatorService.calculateSMA(candles, period);
-  }, [candles, period]);
-}
-
-export function useEMA(candles: Candle[] | null, period: number = 20) {
-  return useMemo(() => {
-    if (!candles || candles.length < period) {
-      return null;
-    }
-    return IndicatorService.calculateEMA(candles, period);
   }, [candles, period]);
 }
 
@@ -58,25 +59,4 @@ export function useMACD(
       signalPeriod
     );
   }, [candles, fastPeriod, slowPeriod, signalPeriod]);
-}
-
-export function useBollingerBands(
-  candles: Candle[] | null,
-  period: number = 20
-) {
-  return useMemo(() => {
-    if (!candles || candles.length < period) {
-      return null;
-    }
-    return IndicatorService.calculateBollingerBands(candles, period);
-  }, [candles, period]);
-}
-
-export function useATR(candles: Candle[] | null, period: number = 14) {
-  return useMemo(() => {
-    if (!candles || candles.length < period + 1) {
-      return null;
-    }
-    return IndicatorService.calculateATR(candles, period);
-  }, [candles, period]);
 }

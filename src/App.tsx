@@ -1,10 +1,10 @@
 import { DashboardLayout } from './layouts/DashboardLayout';
-import { TestConnection } from './components/TestConnection';
+import { SimpleIndicators } from './components/SimpleIndicators';
 
 function App() {
   return (
     <DashboardLayout>
-      <TestConnection />
+      <SimpleIndicators />
     </DashboardLayout>
   );
 }

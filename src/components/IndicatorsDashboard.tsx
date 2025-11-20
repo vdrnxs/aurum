@@ -57,16 +57,15 @@ export function IndicatorsDashboard({
   if (!indicators) {
     return (
       <Card>
-        <Text>No data available for indicators</Text>
+        <Text>Need at least 50 candles to calculate indicators</Text>
       </Card>
     );
   }
 
+  const currentPrice = candles![candles!.length - 1].close;
   const latestRSI = indicators.rsi14[indicators.rsi14.length - 1];
   const latestMACD = indicators.macd[indicators.macd.length - 1];
-  const latestBB = indicators.bb[indicators.bb.length - 1];
   const latestSMA20 = indicators.sma20[indicators.sma20.length - 1];
-  const latestSMA50 = indicators.sma50[indicators.sma50.length - 1];
 
   const getRSIColor = (value: number) => {
     if (value >= 70) return 'red';
@@ -74,13 +73,17 @@ export function IndicatorsDashboard({
     return 'yellow';
   };
 
-  const getTrendBadge = () => {
-    if (!latestSMA20 || !latestSMA50) return null;
+  const getRSISignal = (value: number) => {
+    if (value >= 70) return 'Overbought';
+    if (value <= 30) return 'Oversold';
+    return 'Neutral';
+  };
 
-    if (latestSMA20.value > latestSMA50.value) {
-      return <Badge color="green">Bullish</Badge>;
+  const getTrendBadge = () => {
+    if (currentPrice > latestSMA20.value) {
+      return <Badge color="green">Above SMA20</Badge>;
     }
-    return <Badge color="red">Bearish</Badge>;
+    return <Badge color="red">Below SMA20</Badge>;
   };
 
   return (
@@ -92,70 +95,59 @@ export function IndicatorsDashboard({
         </Text>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <Text>RSI (14)</Text>
-          <Metric>{latestRSI?.value.toFixed(2) || 'N/A'}</Metric>
-          <Flex className="mt-2">
-            <Badge color={getRSIColor(latestRSI?.value || 50)}>
-              {latestRSI?.value >= 70
-                ? 'Overbought'
-                : latestRSI?.value <= 30
-                ? 'Oversold'
-                : 'Neutral'}
-            </Badge>
-          </Flex>
-        </Card>
-
-        <Card>
-          <Text>MACD</Text>
-          <Metric>{latestMACD?.macd.toFixed(2) || 'N/A'}</Metric>
-          <Text className="mt-2">
-            Signal: {latestMACD?.signal.toFixed(2) || 'N/A'}
-          </Text>
-          <Text>
-            Histogram: {latestMACD?.histogram.toFixed(2) || 'N/A'}
-          </Text>
-          <Flex className="mt-2">
-            <Badge color={latestMACD?.histogram > 0 ? 'green' : 'red'}>
-              {latestMACD?.histogram > 0 ? 'Bullish' : 'Bearish'}
-            </Badge>
-          </Flex>
-        </Card>
-
-        <Card>
-          <Text>Bollinger Bands</Text>
-          <Text className="mt-2">Upper: {latestBB?.upper.toFixed(2)}</Text>
-          <Text>Middle: {latestBB?.middle.toFixed(2)}</Text>
-          <Text>Lower: {latestBB?.lower.toFixed(2)}</Text>
+          <Text>Current Price</Text>
+          <Metric>${currentPrice.toFixed(2)}</Metric>
         </Card>
 
         <Card>
           <Text>SMA (20)</Text>
-          <Metric>{latestSMA20?.value.toFixed(2) || 'N/A'}</Metric>
+          <Metric>${latestSMA20.value.toFixed(2)}</Metric>
+          <Flex className="mt-2">{getTrendBadge()}</Flex>
         </Card>
 
         <Card>
-          <Text>SMA (50)</Text>
-          <Metric>{latestSMA50?.value.toFixed(2) || 'N/A'}</Metric>
-        </Card>
-
-        <Card>
-          <Text>Trend</Text>
-          <Flex className="mt-4">{getTrendBadge()}</Flex>
-          <Text className="mt-2 text-sm">
-            Based on SMA 20/50 crossover
-          </Text>
+          <Text>RSI (14)</Text>
+          <Metric>{latestRSI.value.toFixed(2)}</Metric>
+          <Flex className="mt-2">
+            <Badge color={getRSIColor(latestRSI.value)}>
+              {getRSISignal(latestRSI.value)}
+            </Badge>
+          </Flex>
         </Card>
       </div>
 
       <Card>
-        <Title>Indicator Details</Title>
+        <Title>MACD</Title>
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          <div>
+            <Text>MACD Line</Text>
+            <Metric>{latestMACD.macd.toFixed(2)}</Metric>
+          </div>
+          <div>
+            <Text>Signal Line</Text>
+            <Metric>{latestMACD.signal.toFixed(2)}</Metric>
+          </div>
+          <div>
+            <Text>Histogram</Text>
+            <Metric>{latestMACD.histogram.toFixed(2)}</Metric>
+            <Flex className="mt-2">
+              <Badge color={latestMACD.histogram > 0 ? 'green' : 'red'}>
+                {latestMACD.histogram > 0 ? 'Bullish' : 'Bearish'}
+              </Badge>
+            </Flex>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <Title>Summary</Title>
         <div className="mt-4 space-y-2">
           <Text>Total candles analyzed: {candles?.length || 0}</Text>
-          <Text>RSI values calculated: {indicators.rsi14.length}</Text>
-          <Text>MACD values calculated: {indicators.macd.length}</Text>
-          <Text>Bollinger Bands calculated: {indicators.bb.length}</Text>
+          <Text>SMA values: {indicators.sma20.length}</Text>
+          <Text>RSI values: {indicators.rsi14.length}</Text>
+          <Text>MACD values: {indicators.macd.length}</Text>
         </div>
       </Card>
     </div>
