@@ -100,4 +100,4 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ## Hyperliquid Data Types
 
 - Intervals: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d, 3d, 1w, 1M
-- See `shared/types.ts` for type definitions
+- See `src/types/database.ts` for type definitions
