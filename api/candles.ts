@@ -126,7 +126,6 @@ async function saveToSupabase(candles: CandleInsert[]): Promise<void> {
     .from('candles')
     .upsert(candles, {
       onConflict: 'symbol,interval,open_time',
-      ignoreDuplicates: true,
     });
 
   if (error) {

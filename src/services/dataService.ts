@@ -73,10 +73,11 @@ export class DataService {
     const isFresh = HyperliquidService.isFreshData(latestCandle, maxCacheAgeMs);
 
     if (isFresh) {
+      const cacheAge = Math.round(
+        (Date.now() - new Date(latestCandle.created_at).getTime()) / 1000 / 60
+      );
       console.log(
-        `Using cached data for ${symbol} ${interval} (${new Date(
-          latestCandle.open_time
-        ).toLocaleString()})`
+        `Using cached data for ${symbol} ${interval} (cached ${cacheAge} min ago)`
       );
       const cachedCandles = await getLatestCandles(symbol, interval, limit);
       return {
@@ -87,8 +88,11 @@ export class DataService {
       };
     }
 
+    const cacheAge = Math.round(
+      (Date.now() - new Date(latestCandle.created_at).getTime()) / 1000 / 60
+    );
     console.log(
-      `Cached data for ${symbol} ${interval} is stale, fetching from API...`
+      `Cached data for ${symbol} ${interval} is stale (${cacheAge} min old), fetching from API...`
     );
     return await this.fetchFromAPI(symbol, interval, limit);
   }

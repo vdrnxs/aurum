@@ -93,7 +93,8 @@ export class HyperliquidService {
 
   static isFreshData(candle: Candle, maxAgeMs: number = 24 * 60 * 60 * 1000): boolean {
     const now = Date.now();
-    const age = now - candle.open_time;
+    const createdAt = new Date(candle.created_at).getTime();
+    const age = now - createdAt;
     return age < maxAgeMs;
   }
 
