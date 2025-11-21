@@ -1,12 +1,21 @@
-import { Card, Title, Text, Button } from '@tremor/react';
+import {
+  Card,
+  Title,
+  Text,
+  Button,
+  Metric,
+  Badge,
+  List,
+  ListItem,
+  Callout,
+} from '@tremor/react';
 import { useCandles } from '../hooks/useCandles';
 import { useLatestIndicators } from '../hooks/useIndicators';
 
 export function SimpleIndicators() {
-  // Hybrid mode: try cache first, fetch from API if stale, save to DB
   const { candles, loading, error, source, isFresh, refetch } = useCandles('BTC', '1h', 100, {
-    source: 'auto', // Auto mode: cache first, API if needed
-    maxCacheAgeMs: 1 * 60 * 60 * 1000, // 1 hour (cache is cleaned daily at 00:00)
+    source: 'auto',
+    maxCacheAgeMs: 1 * 60 * 60 * 1000,
   });
   const latest = useLatestIndicators(candles);
 
@@ -21,31 +30,28 @@ export function SimpleIndicators() {
 
   if (error) {
     return (
-      <Card>
-        <Title>Error</Title>
-        <Text>{error}</Text>
+      <Callout title="Error" color="red">
+        {error}
         <Button onClick={refetch} className="mt-4">Retry</Button>
-      </Card>
+      </Callout>
     );
   }
 
   if (!candles || candles.length === 0) {
     return (
-      <Card>
-        <Title>No Data</Title>
-        <Text>No candles available</Text>
+      <Callout title="No Data" color="yellow">
+        No candles available
         <Button onClick={refetch} className="mt-4">Load Data</Button>
-      </Card>
+      </Callout>
     );
   }
 
   if (!latest) {
     return (
-      <Card>
-        <Title>Not Enough Data</Title>
-        <Text>Need at least 50 candles. Got: {candles.length}</Text>
+      <Callout title="Not Enough Data" color="yellow">
+        Need at least 50 candles. Got: {candles.length}
         <Button onClick={refetch} className="mt-4">Retry</Button>
-      </Card>
+      </Callout>
     );
   }
 
@@ -55,23 +61,49 @@ export function SimpleIndicators() {
         <div className="flex justify-between items-center">
           <Title>BTC Indicators (1h)</Title>
           <div className="flex gap-2 items-center">
-            <Text className="text-sm">
-              Source: <span className="font-semibold">{source}</span>
-              {source === 'cache' && (
-                <span className={isFresh ? 'text-green-600' : 'text-orange-600'}>
-                  {' '}({isFresh ? 'fresh' : 'stale'})
-                </span>
-              )}
-            </Text>
+            <Badge color={source === 'api' ? 'blue' : 'gray'}>{source}</Badge>
+            {source === 'cache' && (
+              <Badge color={isFresh ? 'green' : 'orange'}>
+                {isFresh ? 'fresh' : 'stale'}
+              </Badge>
+            )}
             <Button size="xs" onClick={refetch}>Refresh</Button>
           </div>
         </div>
       </Card>
 
       <Card>
+        <Title>Current Price</Title>
+        <Metric>${latest.price.toFixed(2)}</Metric>
+        <Text className="mt-2">Based on {candles.length} candles</Text>
+      </Card>
+
+      <Card>
+        <Title>Technical Indicators</Title>
+        <List className="mt-4">
+          <ListItem>
+            <span>SMA(100) ~4 days</span>
+            <span>${latest.sma100.toFixed(2)}</span>
+          </ListItem>
+          <ListItem>
+            <span>RSI(14) standard</span>
+            <Badge color={latest.rsi > 70 ? 'red' : latest.rsi < 30 ? 'green' : 'gray'}>
+              {latest.rsi.toFixed(2)}
+            </Badge>
+          </ListItem>
+          <ListItem>
+            <span>MACD(24,52,9) histogram</span>
+            <Badge color={latest.macd.histogram > 0 ? 'green' : 'red'}>
+              {latest.macd.histogram.toFixed(2)}
+            </Badge>
+          </ListItem>
+        </List>
+      </Card>
+
+      <Card>
         <Title>Raw Data (Ready for AI)</Title>
-        <pre className="mt-4 p-4 bg-gray-100 rounded text-sm overflow-auto">
-{JSON.stringify(latest, null, 2)}
+        <pre className="mt-4 p-4 rounded-tremor-default text-tremor-default overflow-auto bg-tremor-background-subtle dark:bg-dark-tremor-background-subtle text-tremor-content-strong dark:text-dark-tremor-content-strong">
+          {JSON.stringify(latest, null, 2)}
         </pre>
         <Button
           size="xs"
@@ -80,17 +112,6 @@ export function SimpleIndicators() {
         >
           Copy JSON
         </Button>
-      </Card>
-
-      <Card>
-        <Title>Summary (Optimized for 1h BTC)</Title>
-        <div className="mt-4 space-y-2">
-          <Text>Total candles: {candles.length}</Text>
-          <Text>Current price: ${latest.price.toFixed(2)}</Text>
-          <Text>SMA(100) ~4 days: ${latest.sma100.toFixed(2)}</Text>
-          <Text>RSI(14) standard: {latest.rsi.toFixed(2)}</Text>
-          <Text>MACD(24,52,9) swing: {latest.macd.histogram.toFixed(2)}</Text>
-        </div>
       </Card>
     </div>
   );

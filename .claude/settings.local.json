@@ -10,7 +10,8 @@
       "Bash(cat:*)",
       "Bash(npm install:*)",
       "Bash(npm run dev)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(curl -s \"https://stats.hyperliquid.xyz/hyperliquid/total_notional_liquidated\")"
     ],
     "deny": [],
     "ask": []

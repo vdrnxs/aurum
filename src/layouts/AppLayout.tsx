@@ -1,8 +1,50 @@
+import { Button } from '@tremor/react';
+import { useEffect, useState } from 'react';
+
 interface AppLayoutProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
   actions?: React.ReactNode;
+}
+
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+      root.setAttribute('data-mode', 'dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      root.removeAttribute('data-mode');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+      setIsDark(true);
+    } else if (saved === 'light') {
+      setIsDark(false);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setIsDark(true);
+    }
+  }, []);
+
+  return (
+    <Button size="xs" variant="secondary" onClick={() => setIsDark(!isDark)}>
+      {isDark ? 'Light' : 'Dark'}
+    </Button>
+  );
 }
 
 /**
@@ -16,22 +58,21 @@ export function AppLayout({
   actions
 }: AppLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-tremor-background-muted dark:bg-dark-tremor-background">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-tremor-background dark:bg-dark-tremor-background-subtle border-b border-tremor-border dark:border-dark-tremor-border">
         <div className="mx-auto max-w-screen-2xl px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+              <h1 className="text-2xl font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</h1>
               {subtitle && (
-                <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+                <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content mt-1">{subtitle}</p>
               )}
             </div>
-            {actions && (
-              <div className="flex items-center gap-3">
-                {actions}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              {actions}
+            </div>
           </div>
         </div>
       </header>
@@ -40,13 +81,6 @@ export function AppLayout({
       <main className="mx-auto max-w-screen-2xl px-6 py-6">
         {children}
       </main>
-
-      {/* Footer - ready to add if needed */}
-      {/* <footer className="mt-auto border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-screen-2xl px-6 py-4">
-          <p className="text-sm text-gray-600">Aurum Dashboard</p>
-        </div>
-      </footer> */}
     </div>
   );
 }
