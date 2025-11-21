@@ -36,6 +36,9 @@ function getSupabaseClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  console.log('DEBUG - SUPABASE_URL:', url ? 'exists' : 'missing');
+  console.log('DEBUG - SUPABASE_SERVICE_ROLE_KEY:', key ? 'exists' : 'missing');
+
   if (!url || !key) {
     throw new Error('Missing Supabase environment variables');
   }
