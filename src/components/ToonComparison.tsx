@@ -9,7 +9,6 @@ import {
   Grid,
   Col,
   Flex,
-  ProgressBar,
 } from '@tremor/react';
 import { ToonService } from '../services/toonService';
 import type { Candle } from '../types/database';
@@ -52,82 +51,64 @@ export function ToonComparison({ candles, symbol, interval }: ToonComparisonProp
 
   return (
     <div className="space-y-4">
-      {/* Metrics Overview */}
+      {/* Unified Optimization Card */}
       <Card>
-        <Title>TOON Optimization Metrics</Title>
-        <Text className="mt-2">Token efficiency for AI processing</Text>
-
-        <Grid numItemsSm={2} numItemsLg={4} className="gap-4 mt-6">
-          <Col>
-            <Text>JSON Tokens</Text>
-            <Metric>{comparison.jsonTokens.toLocaleString()}</Metric>
-          </Col>
-          <Col>
-            <Text>TOON Tokens</Text>
-            <Metric className="text-green-600">{comparison.toonTokens.toLocaleString()}</Metric>
-          </Col>
-          <Col>
-            <Text>Tokens Saved</Text>
-            <Metric>{comparison.reduction.toLocaleString()}</Metric>
-          </Col>
-          <Col>
-            <Text>Reduction</Text>
-            <Metric className="text-emerald-600">{comparison.reductionPercent}</Metric>
-          </Col>
-        </Grid>
-
-        <div className="mt-6">
-          <Text className="mb-2">Token Usage Comparison</Text>
-          <Flex className="gap-4">
-            <div className="flex-1">
-              <Text className="text-xs mb-1">JSON</Text>
-              <ProgressBar value={100} color="blue" className="mt-1" />
-              <Text className="text-xs mt-1">{comparison.jsonTokens} tokens</Text>
-            </div>
-            <div className="flex-1">
-              <Text className="text-xs mb-1">TOON</Text>
-              <ProgressBar
-                value={(comparison.toonTokens / comparison.jsonTokens) * 100}
-                color="green"
-                className="mt-1"
-              />
-              <Text className="text-xs mt-1">{comparison.toonTokens} tokens</Text>
-            </div>
-          </Flex>
-        </div>
-      </Card>
-
-      {/* Cost Savings */}
-      <Card>
-        <Title>Cost Savings Estimate</Title>
-        <Text className="mt-2">
-          Based on GPT-4 pricing (${GPT4_COST_PER_1K}/1K tokens) × {DAILY_REQUESTS} requests/day
+        <Title>TOON Optimization</Title>
+        <Text className="mt-1 text-gray-500 mb-6">
+          Token efficiency and cost savings analysis
         </Text>
 
-        <Grid numItemsSm={3} className="gap-6 mt-6">
+        {/* Token Metrics */}
+        <Grid numItemsSm={2} numItemsLg={4} className="gap-4 mb-6">
           <Col>
-            <Text>Daily Savings</Text>
-            <Metric className="text-green-600">${dailySavings.toFixed(2)}</Metric>
+            <Text className="text-xs text-gray-500">JSON Tokens</Text>
+            <Metric className="mt-1">{comparison.jsonTokens.toLocaleString()}</Metric>
           </Col>
           <Col>
-            <Text>Monthly Savings</Text>
-            <Metric className="text-emerald-600">${monthlySavings.toFixed(2)}</Metric>
+            <Text className="text-xs text-gray-500">TOON Tokens</Text>
+            <Metric className="mt-1">{comparison.toonTokens.toLocaleString()}</Metric>
           </Col>
           <Col>
-            <Text>Yearly Savings</Text>
-            <Metric className="text-emerald-700">${yearlySavings.toFixed(2)}</Metric>
+            <Text className="text-xs text-gray-500">Tokens Saved</Text>
+            <Metric className="mt-1">{comparison.reduction.toLocaleString()}</Metric>
+          </Col>
+          <Col>
+            <Text className="text-xs text-gray-500">Efficiency Gain</Text>
+            <Metric className="mt-1">{comparison.reductionPercent}</Metric>
           </Col>
         </Grid>
 
-        <div className="mt-6 p-4 rounded-tremor-default bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
-          <Flex justifyContent="between" alignItems="center">
-            <Text className="text-green-900 dark:text-green-100">
-              <strong>{comparison.reductionPercent}</strong> reduction in token usage
-            </Text>
-            <Badge color="green" size="lg">
-              Save ${yearlySavings.toFixed(0)}/year
-            </Badge>
-          </Flex>
+        {/* Divider */}
+        <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+
+        {/* Cost Savings */}
+        <div>
+          <Text className="text-sm font-medium mb-4">
+            Cost Savings (GPT-4: ${GPT4_COST_PER_1K}/1K tokens × {DAILY_REQUESTS} req/day)
+          </Text>
+          <Grid numItemsSm={3} className="gap-4">
+            <Col>
+              <Text className="text-xs text-gray-500">Daily</Text>
+              <Metric className="mt-1">${dailySavings.toFixed(2)}</Metric>
+              <Text className="text-xs text-gray-400 mt-1">
+                ${jsonDailyCost.toFixed(2)} → ${toonDailyCost.toFixed(2)}
+              </Text>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">Monthly</Text>
+              <Metric className="mt-1">${monthlySavings.toFixed(2)}</Metric>
+              <Text className="text-xs text-gray-400 mt-1">
+                ${(jsonDailyCost * 30).toFixed(2)} → ${(toonDailyCost * 30).toFixed(2)}
+              </Text>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">Yearly</Text>
+              <Metric className="mt-1">${yearlySavings.toFixed(2)}</Metric>
+              <Text className="text-xs text-gray-400 mt-1">
+                ${(jsonDailyCost * 365).toFixed(2)} → ${(toonDailyCost * 365).toFixed(2)}
+              </Text>
+            </Col>
+          </Grid>
         </div>
       </Card>
 
