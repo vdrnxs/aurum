@@ -5,12 +5,13 @@ import {
   Button,
   Metric,
   Badge,
-  List,
-  ListItem,
   Callout,
+  Grid,
+  Col,
 } from '@tremor/react';
 import { useCandles } from '../hooks/useCandles';
 import { useLatestIndicators } from '../hooks/useIndicators';
+import { ToonComparison } from './ToonComparison';
 
 export function SimpleIndicators() {
   const { candles, loading, error, source, isFresh, refetch } = useCandles('BTC', '1h', 100, {
@@ -77,51 +78,47 @@ export function SimpleIndicators() {
         <Text className="mt-2">Based on {candles.length} candles</Text>
       </Card>
 
-      <Card>
-        <Title>Technical Indicators</Title>
-        <List className="mt-4">
-          <ListItem>
-            <span>SMA(100) ~4 days</span>
-            <span>${latest.sma100.toFixed(2)}</span>
-          </ListItem>
-          <ListItem>
-            <span>RSI(14) standard</span>
-            <Badge color={latest.rsi > 70 ? 'red' : latest.rsi < 30 ? 'green' : 'gray'}>
-              {latest.rsi.toFixed(2)}
-            </Badge>
-          </ListItem>
-          <ListItem>
-            <span>MACD(24,52,9) histogram</span>
-            <Badge color={latest.macd.histogram > 0 ? 'green' : 'red'}>
-              {latest.macd.histogram.toFixed(2)}
-            </Badge>
-          </ListItem>
-          <ListItem>
-            <span>Bollinger Bands(20)</span>
-            <span>
+      <Grid numItemsSm={2} numItemsLg={5} className="gap-4">
+        <Col>
+          <Card className="h-full">
+            <Text className="text-sm font-medium">SMA(100)</Text>
+            <Metric className="mt-2">${latest.sma100.toFixed(2)}</Metric>
+            <Text className="mt-2 text-xs text-gray-500">~4 days</Text>
+          </Card>
+        </Col>
+        <Col>
+          <Card className="h-full">
+            <Text className="text-sm font-medium">RSI(14)</Text>
+            <Metric className="mt-2">{latest.rsi.toFixed(2)}</Metric>
+            <Text className="mt-2 text-xs text-gray-500">standard</Text>
+          </Card>
+        </Col>
+        <Col>
+          <Card className="h-full">
+            <Text className="text-sm font-medium">MACD</Text>
+            <Metric className="mt-2">{latest.macd.histogram.toFixed(2)}</Metric>
+            <Text className="mt-2 text-xs text-gray-500">(24,52,9) histogram</Text>
+          </Card>
+        </Col>
+        <Col>
+          <Card className="h-full">
+            <Text className="text-sm font-medium">Bollinger Bands(20)</Text>
+            <Metric className="mt-2 text-lg">
               {latest.bollingerBands.lower.toFixed(0)} - {latest.bollingerBands.upper.toFixed(0)}
-            </span>
-          </ListItem>
-          <ListItem>
-            <span>ATR(14) volatility</span>
-            <span>${latest.atr.toFixed(2)}</span>
-          </ListItem>
-        </List>
-      </Card>
+            </Metric>
+            <Text className="mt-2 text-xs text-gray-500">range</Text>
+          </Card>
+        </Col>
+        <Col>
+          <Card className="h-full">
+            <Text className="text-sm font-medium">ATR(14)</Text>
+            <Metric className="mt-2">${latest.atr.toFixed(2)}</Metric>
+            <Text className="mt-2 text-xs text-gray-500">volatility</Text>
+          </Card>
+        </Col>
+      </Grid>
 
-      <Card>
-        <Title>Raw Data (Ready for AI)</Title>
-        <pre className="mt-4 p-4 rounded-tremor-default text-tremor-default overflow-auto bg-tremor-background-subtle dark:bg-dark-tremor-background-subtle text-tremor-content-strong dark:text-dark-tremor-content-strong">
-          {JSON.stringify(latest, null, 2)}
-        </pre>
-        <Button
-          size="xs"
-          className="mt-4"
-          onClick={() => navigator.clipboard.writeText(JSON.stringify(latest, null, 2))}
-        >
-          Copy JSON
-        </Button>
-      </Card>
+      <ToonComparison candles={candles} symbol="BTC" interval="1h" />
     </div>
   );
 }

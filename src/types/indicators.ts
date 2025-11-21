@@ -47,3 +47,39 @@ export interface LatestIndicators {
 }
 
 export type IndicatorType = 'SMA' | 'RSI' | 'MACD' | 'BB' | 'ATR';
+
+export interface AIPayloadMetadata {
+  symbol: string;
+  interval: string;
+  timestamp: number;
+  candleCount: number;
+  historyDepth: number;
+}
+
+export interface RecentPriceHistory {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface RecentIndicatorHistory {
+  prices: RecentPriceHistory[];
+  sma: SMAResult[];
+  rsi: RSIResult[];
+}
+
+export interface AIPayload {
+  metadata: AIPayloadMetadata;
+  current: LatestIndicators;
+  recentHistory: RecentIndicatorHistory;
+}
+
+export interface TokenComparison {
+  jsonTokens: number;
+  toonTokens: number;
+  reduction: number;
+  reductionPercent: string;
+}

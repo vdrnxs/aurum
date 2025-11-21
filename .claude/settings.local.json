@@ -14,7 +14,8 @@
       "Bash(curl -s \"https://stats.hyperliquid.xyz/hyperliquid/total_notional_liquidated\")",
       "Bash(npm show:*)",
       "Bash(dir:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [],
     "ask": []
