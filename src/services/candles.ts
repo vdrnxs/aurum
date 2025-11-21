@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase';
 import { buildCandlesQuery } from '../utils/query-builder';
 import { isNoDataError, handleSupabaseError } from '../utils/supabase-error';
 import type { Candle, CandleInterval, CryptoSymbol } from '../types/database';
@@ -38,32 +37,4 @@ export async function getLatestCandle(
   }
 
   return data;
-}
-
-export async function saveCandles(candles: Candle[]): Promise<void> {
-  if (candles.length === 0) return;
-
-  const candlesToInsert = candles.map((candle) => ({
-    symbol: candle.symbol,
-    interval: candle.interval,
-    open_time: candle.open_time,
-    close_time: candle.close_time,
-    open: candle.open,
-    high: candle.high,
-    low: candle.low,
-    close: candle.close,
-    volume: candle.volume,
-    trades_count: candle.trades_count,
-  }));
-
-  const { error } = await supabase
-    .from('candles')
-    .upsert(candlesToInsert, {
-      onConflict: 'symbol,interval,open_time',
-      ignoreDuplicates: true,
-    });
-
-  if (error) {
-    handleSupabaseError(error, 'saveCandles');
-  }
 }

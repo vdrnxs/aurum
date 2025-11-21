@@ -4,128 +4,100 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aurum is a financial dashboard application that visualizes OHLCV (Open, High, Low, Close, Volume) cryptocurrency data from Hyperliquid. The architecture follows a three-tier design:
-
-1. **Data Source**: Hyperliquid WebSocket API (wss://api.hyperliquid.xyz/ws)
-2. **Database**: Supabase PostgreSQL with REST API
-3. **Frontend**: React + TypeScript + Vite with Tremor components
+Aurum is a financial dashboard application that visualizes OHLCV (Open, High, Low, Close, Volume) cryptocurrency data from Hyperliquid.
 
 ## Architecture
 
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     FRONTEND (React)                        │
+│  1. Check Supabase for cached data                          │
+│  2. If stale/empty -> call /api/candles                     │
+│  3. Read updated data from Supabase                         │
+│  4. Calculate indicators client-side                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                    POST /api/candles
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│               BACKEND (Vercel Serverless)                   │
+│  api/candles.ts                                             │
+│  - Validates request (symbol, interval)                     │
+│  - Fetches from Hyperliquid REST API                        │
+│  - Saves to Supabase with service_role key                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     SUPABASE (PostgreSQL)                   │
+│  - Table: candles                                           │
+│  - RLS: SELECT public, INSERT/UPDATE/DELETE service_role    │
+│  - Cron: Clears data daily at 00:00                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Data Flow
-```
-Hyperliquid WebSocket → Backend Script → Supabase (PostgreSQL) → React Frontend
-```
+1. User opens app
+2. Frontend checks Supabase for cached candles
+3. If no data or stale -> Frontend calls `POST /api/candles`
+4. Backend fetches from Hyperliquid, saves to Supabase
+5. Frontend reads fresh data from Supabase
+6. Indicators calculated client-side
 
-### Backend (Separate Script)
-- The backend is a standalone Node.js/Deno script (not part of this repo yet)
-- Connects to Hyperliquid WebSocket for real-time OHLCV data
-- Uses Supabase `service_role` key to INSERT data into the database
-- Should run 24/7 to continuously populate the database
-
-### Frontend (This Repository)
-- Uses Supabase `anon` (public) key for READ-ONLY access
-- Cannot insert, update, or delete data (enforced by RLS policies)
-- Displays real-time financial data using Tremor React components
-
-### Database Schema
-The `candles` table stores OHLCV data with the following structure:
-- `symbol` (TEXT): Asset symbol (BTC, ETH, etc)
-- `interval` (TEXT): Time interval (1m, 5m, 1h, 1d, etc)
-- `open_time` (BIGINT): Opening timestamp in milliseconds
-- `close_time` (BIGINT): Closing timestamp in milliseconds
-- `open`, `high`, `low`, `close`, `volume` (DECIMAL): Price and volume data
-- `trades_count` (INTEGER): Number of trades in the candle
-- Unique constraint: `(symbol, interval, open_time)` to prevent duplicates
-
-### Cache Strategy (24h Daily Reset)
-Supabase acts as a **temporary daily cache**, not permanent storage:
-- **Retention**: Only last 24 hours of data
-- **Cleanup**: Automatic daily reset at 00:00 (midnight) via `cleanup_old_candles()` function
-- **Fresh threshold**: Data is considered fresh for 1 hour
-- **Reset time**: Midnight (00:00) - configurable to your timezone in pg_cron
-- **Purpose**: Reduce API calls to Hyperliquid, provide fallback if API is down
-- **DB size**: Always minimal (~1-2 MB), never grows unbounded
-- **Use case**: Daily trading analysis with 1h interval candles (100 candles = ~4 days of 1h data)
-
-### Row Level Security (RLS)
-- Public read access (anyone with anon key can SELECT)
-- Write access restricted to `service_role` only (backend script)
-- Frontend cannot modify database (security best practice)
+### Key Files
+- `api/candles.ts`: Vercel serverless function (backend)
+- `src/services/dataService.ts`: Orchestrates data fetching
+- `src/services/candles.ts`: Supabase read-only queries
+- `src/services/hyperliquid.ts`: Direct Hyperliquid API (fallback)
+- `src/services/indicators.ts`: Technical indicators (SMA, EMA, RSI, MACD, BB, ATR)
 
 ## Development Commands
 
 ```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Run linter
-npm run lint
-
-# Preview production build
-npm run preview
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run lint     # Run linter
 ```
 
-## Key Files and Directories
+## Environment Variables
 
-- `src/lib/supabase.ts`: Supabase client configuration (uses anon key from .env)
-- `src/types/database.ts`: TypeScript types for database schema and Hyperliquid data
-- `src/services/candles.ts`: Service functions for fetching candle data from Supabase
-- `supabase/schema.sql`: Complete database schema (can be executed in Supabase SQL Editor)
-- `.env`: Contains Supabase credentials (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
-
-## Environment Setup
-
-Required environment variables in `.env`:
+### Frontend (.env)
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-**Important**: Never commit `.env` to version control. The anon key is for client-side use only.
+### Backend (Vercel Environment Variables)
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+## Supabase Setup
+
+1. Run `supabase/schema.sql` to create the candles table
+2. Run `supabase/rls-policies.sql` to configure RLS (SELECT only for anon)
+3. Set up a cron job to clear data daily at 00:00
 
 ## Code Style Guidelines
 
-### SOLID and DRY Principles
-- Follow SOLID principles for all new code
-- Avoid code duplication (DRY - Don't Repeat Yourself)
-- Extract reusable logic into utility functions or custom hooks
-- Keep components focused on a single responsibility
-
-### Code Standards
-- **No emojis in code**: Never use emojis in code, comments, variable names, or function names
+- Follow SOLID and DRY principles
+- **No emojis in code**
 - Use TypeScript strict mode
-- Prefer functional components with hooks over class components
+- Prefer functional components with hooks
 - Use descriptive variable and function names
 
 ## Technology Stack
 
 - **Frontend**: React 18, TypeScript, Vite
 - **Styling**: Tailwind CSS
-- **UI Components**: Tremor React (for charts and dashboard components)
-- **Database**: Supabase (PostgreSQL with auto-generated REST API)
-- **Data Source**: Hyperliquid WebSocket API
+- **UI Components**: Tremor React
+- **Backend**: Vercel Serverless Functions
+- **Data Source**: Hyperliquid REST API
+- **Database**: Supabase (PostgreSQL)
 
-## Supabase Integration
+## Hyperliquid Data Types
 
-### Available Service Functions
-Located in `src/services/candles.ts`:
-- `getLatestCandles(symbol, interval, limit)`: Fetch most recent candles
-- `getCandlesInRange(symbol, interval, startTime, endTime)`: Fetch candles in time range
-- `subscribeToCandles(symbol, interval, callback)`: Real-time subscription to new candles
-- `getLatestCandle(symbol, interval)`: Fetch single most recent candle
-
-### Hyperliquid Data Types
 - Intervals: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d, 3d, 1w, 1M
-- Data comes as JSON over WebSocket with fields: t, T, s, i, o, h, l, c, v, n
-- See `HyperliquidCandle` type in `src/types/database.ts` for mapping
-
-## Testing Connection
-
-Use the `TestConnection` component to verify Supabase connectivity. It will:
-- Attempt to fetch candles from the database
-- Display connection status and any errors
-- Show sample data if available
+- See `shared/types.ts` for type definitions

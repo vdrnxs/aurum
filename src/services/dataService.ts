@@ -1,5 +1,5 @@
 import type { Candle, CandleInterval, CryptoSymbol } from '../types/database';
-import { getLatestCandles, getLatestCandle, saveCandles } from './candles';
+import { getLatestCandles, getLatestCandle } from './candles';
 import { HyperliquidService } from './hyperliquid';
 
 export interface DataServiceOptions {
@@ -15,8 +15,25 @@ export interface DataServiceResult {
   isFresh: boolean;
 }
 
+async function refreshCache(
+  symbol: CryptoSymbol,
+  interval: CandleInterval,
+  limit: number
+): Promise<void> {
+  const response = await fetch('/api/candles', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symbol, interval, limit }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to refresh cache');
+  }
+}
+
 export class DataService {
-  private static readonly DEFAULT_CACHE_AGE = 1 * 60 * 60 * 1000; // 1 hour (aligned with 24h cleanup)
+  private static readonly DEFAULT_CACHE_AGE = 1 * 60 * 60 * 1000; // 1 hour
 
   static async getCandles(
     symbol: CryptoSymbol,
@@ -82,18 +99,12 @@ export class DataService {
     limit: number
   ): Promise<DataServiceResult> {
     try {
-      const candles = await HyperliquidService.getCandles(
-        symbol,
-        interval,
-        limit
-      );
+      // Llama al backend serverless para refrescar cache
+      await refreshCache(symbol, interval, limit);
+      console.log(`Refreshed cache via API for ${symbol} ${interval}`);
 
-      console.log(
-        `Fetched ${candles.length} candles from Hyperliquid API for ${symbol} ${interval}`
-      );
-
-      await saveCandles(candles);
-      console.log(`Saved ${candles.length} candles to cache`);
+      // Lee los datos actualizados de Supabase
+      const candles = await getLatestCandles(symbol, interval, limit);
 
       return {
         candles,
@@ -102,27 +113,43 @@ export class DataService {
         isFresh: true,
       };
     } catch (error) {
-      console.error('Error fetching from Hyperliquid API:', error);
+      console.error('Error refreshing cache:', error);
 
-      console.log('Falling back to cached data...');
-      const cachedCandles = await getLatestCandles(symbol, interval, limit);
-
-      if (cachedCandles.length === 0) {
-        throw new Error(
-          `No cached data available and API failed: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`
+      // Fallback: leer directo de Hyperliquid (sin guardar)
+      console.log('Falling back to direct Hyperliquid API...');
+      try {
+        const candles = await HyperliquidService.getCandles(
+          symbol,
+          interval,
+          limit
         );
-      }
+        return {
+          candles,
+          source: 'api',
+          timestamp: Date.now(),
+          isFresh: true,
+        };
+      } catch (fallbackError) {
+        // Ultimo recurso: cache viejo
+        console.log('Falling back to stale cache...');
+        const cachedCandles = await getLatestCandles(symbol, interval, limit);
 
-      return {
-        candles: cachedCandles,
-        source: 'cache',
-        timestamp:
-          cachedCandles[cachedCandles.length - 1]?.open_time || Date.now(),
-        isFresh: false,
-      };
+        if (cachedCandles.length === 0) {
+          throw new Error(
+            `No data available: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
+          );
+        }
+
+        return {
+          candles: cachedCandles,
+          source: 'cache',
+          timestamp:
+            cachedCandles[cachedCandles.length - 1]?.open_time || Date.now(),
+          isFresh: false,
+        };
+      }
     }
   }
-
 }
