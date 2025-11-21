@@ -67,7 +67,6 @@ export function SimpleIndicators() {
                 {isFresh ? 'fresh' : 'stale'}
               </Badge>
             )}
-            <Button size="xs" onClick={refetch}>Refresh</Button>
           </div>
         </div>
       </Card>
@@ -96,6 +95,16 @@ export function SimpleIndicators() {
             <Badge color={latest.macd.histogram > 0 ? 'green' : 'red'}>
               {latest.macd.histogram.toFixed(2)}
             </Badge>
+          </ListItem>
+          <ListItem>
+            <span>Bollinger Bands(20)</span>
+            <span>
+              {latest.bollingerBands.lower.toFixed(0)} - {latest.bollingerBands.upper.toFixed(0)}
+            </span>
+          </ListItem>
+          <ListItem>
+            <span>ATR(14) volatility</span>
+            <span>${latest.atr.toFixed(2)}</span>
           </ListItem>
         </List>
       </Card>

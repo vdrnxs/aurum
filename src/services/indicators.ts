@@ -1,6 +1,6 @@
-import { sma, rsi, macd } from 'indicatorts';
+import { sma, rsi, macd, bollingerBands, atr } from 'indicatorts';
 import type { Candle } from '../types/database';
-import type { SMAResult, RSIResult, MACDResult } from '../types/indicators';
+import type { SMAResult, RSIResult, MACDResult, BollingerBandsResult, ATRResult } from '../types/indicators';
 
 export class IndicatorService {
   static calculateSMA(candles: Candle[], period: number = 20): SMAResult[] {
@@ -49,17 +49,49 @@ export class IndicatorService {
     }));
   }
 
+  static calculateBollingerBands(
+    candles: Candle[],
+    period: number = 20
+  ): BollingerBandsResult[] {
+    const closes = candles.map((c) => c.close);
+    const bb = bollingerBands(closes, { period });
+
+    return bb.middle.map((middle: number, index: number) => ({
+      timestamp: candles[index + period - 1]?.open_time || 0,
+      upper: bb.upper[index],
+      middle,
+      lower: bb.lower[index],
+    }));
+  }
+
+  static calculateATR(candles: Candle[], period: number = 14): ATRResult[] {
+    const highs = candles.map((c) => c.high);
+    const lows = candles.map((c) => c.low);
+    const closes = candles.map((c) => c.close);
+    const atrResult = atr(highs, lows, closes, { period });
+
+    return atrResult.atrLine.map((value: number, index: number) => ({
+      timestamp: candles[index + period - 1]?.open_time || 0,
+      value,
+      period,
+    }));
+  }
+
   static calculateAll(candles: Candle[]) {
     return {
       sma100: this.calculateSMA(candles, 100),
       rsi14: this.calculateRSI(candles, 14),
       macd: this.calculateMACD(candles, 24, 52, 9),
+      bollingerBands: this.calculateBollingerBands(candles, 20),
+      atr14: this.calculateATR(candles, 14),
     };
   }
 
   static getLatestValues(candles: Candle[]) {
     const indicators = this.calculateAll(candles);
     const currentPrice = candles[candles.length - 1].close;
+    const latestBB = indicators.bollingerBands[indicators.bollingerBands.length - 1];
+    const latestATR = indicators.atr14[indicators.atr14.length - 1];
 
     return {
       price: currentPrice,
@@ -70,6 +102,12 @@ export class IndicatorService {
         signal: indicators.macd[indicators.macd.length - 1]?.signal || 0,
         histogram: indicators.macd[indicators.macd.length - 1]?.histogram || 0,
       },
+      bollingerBands: {
+        upper: latestBB?.upper || 0,
+        middle: latestBB?.middle || 0,
+        lower: latestBB?.lower || 0,
+      },
+      atr: latestATR?.value || 0,
     };
   }
 }

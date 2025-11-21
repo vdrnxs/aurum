@@ -18,6 +18,17 @@ export interface MACDResult {
   histogram: number;
 }
 
+export interface BollingerBandsResult {
+  timestamp: number;
+  upper: number;
+  middle: number;
+  lower: number;
+}
+
+export interface ATRResult extends IndicatorResult {
+  period: number;
+}
+
 export interface LatestIndicators {
   price: number;
   sma100: number;
@@ -27,6 +38,12 @@ export interface LatestIndicators {
     signal: number;
     histogram: number;
   };
+  bollingerBands: {
+    upper: number;
+    middle: number;
+    lower: number;
+  };
+  atr: number;
 }
 
-export type IndicatorType = 'SMA' | 'RSI' | 'MACD';
+export type IndicatorType = 'SMA' | 'RSI' | 'MACD' | 'BB' | 'ATR';
