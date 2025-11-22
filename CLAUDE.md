@@ -4,76 +4,101 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aurum is a financial dashboard application that visualizes OHLCV (Open, High, Low, Close, Volume) cryptocurrency data from Hyperliquid. It uses a serverless architecture with Supabase as a cache layer.
+Aurum is an AI-powered cryptocurrency trading signal generator that analyzes OHLCV data from Hyperliquid using technical indicators and Claude AI to generate automated trading signals every 4 hours.
 
 ## Architecture
 
 ### System Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     FRONTEND (React)                        │
-│  1. Check Supabase for cached data                          │
-│  2. If stale/empty -> call POST /api/candles                │
-│  3. Read updated data from Supabase                         │
-│  4. If API fails -> Direct Hyperliquid fallback             │
-│  5. Calculate indicators client-side                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    POST /api/candles
+┌─────────────────────────────────────────────────────────────────┐
+│                    CRON JOB (Every 4 hours)                     │
+│              00:00, 04:00, 08:00, 12:00, 16:00, 20:00           │
+│                  (GitHub Actions / cron-job.org)                │
+└─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│          BACKEND (Vercel Serverless REST API)               │
-│  api/candles.ts                                             │
-│  - Validates request (symbol, interval, limit)              │
-│  - Fetches from Hyperliquid REST API                        │
-│  - Saves to Supabase with service_role key                  │
-│  - Returns success/error response                           │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│             BACKEND: POST /api/analyze-signals                  │
+│                 (Vercel Serverless Function)                    │
+│                                                                 │
+│  1. Fetch 100 candles from Hyperliquid API                      │
+│  2. Save/update candles in Supabase (upsert)                    │
+│  3. Calculate technical indicators (SMA, EMA, RSI, MACD, etc.)  │
+│  4. Convert data to TOON format (compressed JSON)               │
+│  5. Send to Claude AI for analysis                              │
+│  6. Parse AI response → trading signal (BUY/SELL/HOLD)          │
+│  7. Save signal to 'trading_signals' table                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  SUPABASE (PostgreSQL)                      │
-│  - Table: candles                                           │
-│  - RLS: SELECT public, INSERT/UPDATE/DELETE service_role    │
-│  - Cron: Deletes data older than 24h at 00:00               │
-│  - Acts as cache (not permanent storage)                    │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                  SUPABASE (PostgreSQL)                          │
+│                                                                 │
+│  Table: candles                                                 │
+│  - Stores last 100 candles per symbol/interval                 │
+│  - Updated every 4h via upsert                                  │
+│                                                                 │
+│  Table: trading_signals                                         │
+│  - id, symbol, interval, timestamp                              │
+│  - signal (BUY/SELL/HOLD/STRONG_BUY/STRONG_SELL)                │
+│  - confidence (0-100%), indicators_data (JSONB)                 │
+│  - ai_reasoning, ai_model, processing_time_ms                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              FRONTEND (React + TanStack Query)                  │
+│                                                                 │
+│  - Fetch trading signals from Supabase                          │
+│  - TanStack Query handles local caching                         │
+│  - Display signals + charts + AI reasoning                      │
+│  - Auto-refresh when new signals arrive (Realtime optional)     │
+│  - No Hyperliquid API fallback needed                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Architecture Details
 
-**Type**: REST API Serverless (NOT WebSocket)
-- The backend is **on-demand**: only runs when called
-- No 24/7 running processes
-- No real-time streaming (pull-based, not push-based)
+**Type**: Cron-based AI Analysis Pipeline (NOT on-demand)
+- Backend runs **every 4 hours** via scheduled cron job
+- Fully automated - no user interaction needed to generate signals
+- Frontend is read-only - displays pre-calculated signals
 
 **Data Flow**:
-1. User opens app
-2. Frontend checks Supabase for cached candles
-3. If cache is stale (>1h) or empty → Frontend calls `POST /api/candles`
-4. Backend fetches from Hyperliquid REST API, saves to Supabase
-5. Frontend reads fresh data from Supabase
-6. If backend fails → Direct fallback to Hyperliquid API (no cache save)
-7. Technical indicators calculated client-side
+1. Cron job triggers `POST /api/analyze-signals` every 4 hours
+2. Backend fetches fresh candles from Hyperliquid
+3. Candles saved to Supabase with upsert (no duplicates)
+4. Technical indicators calculated server-side
+5. Data converted to TOON format for efficient AI processing
+6. Claude AI analyzes data and generates trading signal
+7. Signal saved to `trading_signals` table
+8. Frontend reads signals via TanStack Query (cached locally)
+9. Optional: Realtime updates when new signals arrive
 
-**Cache Strategy**:
-- Supabase acts as temporary cache (data >24h deleted daily at 00:00)
-- Cache is considered fresh for 1 hour OR if it has at least 50 candles
-- If cache is stale (>1h old) OR has less than 50 candles → API refresh
-- API uses upsert to prevent duplicates when refreshing cache
+**Trading Signal Strategy**:
+- Signals generated every 4 hours at: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC
+- Each signal includes: direction (BUY/SELL/HOLD), confidence (0-100%), AI reasoning
+- Historical signals preserved for backtesting and analysis
+- Old signals (>30 days) automatically deleted
 
 ## Technology Stack
 
 - **Frontend**: React 18, TypeScript, Vite
+- **State Management**: TanStack Query (React Query)
 - **Styling**: Tailwind CSS
 - **UI Components**: Tremor React
 - **Charts**: Tremor React (built on Recharts)
 - **Backend**: Vercel Serverless Functions (REST API)
+- **AI Analysis**: Claude API (Anthropic)
+- **Data Format**: TOON (compressed JSON for LLMs)
 - **Data Source**: Hyperliquid REST API
-- **Database/Cache**: Supabase (PostgreSQL)
+- **Database**: Supabase (PostgreSQL)
 - **Technical Indicators**: indicatorts library
+- **Cron Jobs**: GitHub Actions (free) or cron-job.org
 - **Deployment**: Vercel (auto-deploy from GitHub)
 
 ## Project Structure
@@ -81,27 +106,44 @@ Aurum is a financial dashboard application that visualizes OHLCV (Open, High, Lo
 ```
 aurum/
 ├── api/
-│   └── candles.ts              # Serverless API endpoint
+│   ├── candles.ts              # Legacy endpoint (deprecated)
+│   └── analyze-signals.ts      # Main AI analysis pipeline
+│
 ├── src/
-│   ├── components/             # React components
+│   ├── components/
+│   │   ├── CandlestickChart.tsx
+│   │   └── TradingSignalCard.tsx # Signal display component
+│   │
 │   ├── hooks/
-│   │   ├── useCandles.ts       # Data fetching hook
-│   │   └── useIndicators.ts    # Technical indicators hook
+│   │   ├── useCandles.ts       # (deprecated - will be removed)
+│   │   ├── useIndicators.ts    # (deprecated - indicators now server-side)
+│   │   └── useTradingSignals.ts # Fetch signals with TanStack Query
+│   │
 │   ├── services/
-│   │   ├── candles.ts          # Supabase read-only queries
-│   │   ├── dataService.ts      # Orchestrates data fetching
-│   │   ├── hyperliquid.ts      # Direct Hyperliquid API (fallback)
-│   │   └── indicators.ts       # Technical indicators (SMA, EMA, RSI, MACD, BB, ATR)
+│   │   ├── candles.ts          # Supabase queries for candles
+│   │   ├── signals.ts          # Supabase queries for signals
+│   │   ├── dataService.ts      # (deprecated)
+│   │   ├── hyperliquid.ts      # (used by backend only)
+│   │   └── indicators.ts       # Technical indicators (shared with backend)
+│   │
 │   ├── types/
 │   │   └── database.ts         # TypeScript type definitions
+│   │
 │   ├── lib/
 │   │   └── supabase.ts         # Supabase client (anon key)
+│   │
 │   └── utils/
 │       ├── query-builder.ts    # Supabase query helpers
 │       └── supabase-error.ts   # Error handling
+│
 ├── supabase/
-│   ├── schema.sql              # Database schema
-│   └── rls-policies.sql        # Row Level Security policies
+│   ├── schema.sql              # Candles table schema
+│   └── schema-signals.sql      # Trading signals table schema
+│
+├── .github/
+│   └── workflows/
+│       └── trading-signals.yml # Cron job (GitHub Actions)
+│
 └── package.json
 ```
 
@@ -112,12 +154,16 @@ aurum/
 ```bash
 # Frontend only (Vite dev server)
 npm run dev              # http://localhost:5173
-                         # API calls will fail, uses Hyperliquid fallback
+                         # Reads signals from Supabase
 
 # Full stack (Frontend + API)
 vercel dev               # http://localhost:3000
-                         # Simulates Vercel serverless environment
-                         # Requires .env file with backend variables
+                         # Test API endpoints locally
+
+# Trigger signal analysis manually (for testing)
+curl -X POST http://localhost:3000/api/analyze-signals \
+  -H "Content-Type: application/json" \
+  -d '{"symbols": ["BTC"], "interval": "4h", "limit": 100}'
 
 # Build & other
 npm run build            # Build for production
@@ -137,96 +183,205 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
 #### Production (Vercel Dashboard)
 Set these in Vercel project settings → Environment Variables:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `ANTHROPIC_API_KEY`
 - `VITE_SUPABASE_URL` (auto-injected to frontend build)
 - `VITE_SUPABASE_ANON_KEY` (auto-injected to frontend build)
 
-**Note**: Variables with `VITE_` prefix are exposed to the frontend bundle. Backend variables (without prefix) are only accessible in serverless functions.
+**Note**:
+- Variables with `VITE_` prefix are exposed to the frontend bundle
+- Backend variables (without prefix) are only accessible in serverless functions
+- Never expose `ANTHROPIC_API_KEY` to frontend
 
 ## Supabase Setup
 
-### 1. Create Table
+### 1. Create Candles Table
 Run `supabase/schema.sql` in Supabase SQL Editor to create the `candles` table with proper indexes and constraints.
 
-### 2. Configure RLS (Row Level Security)
-Run `supabase/rls-policies.sql` to set up secure policies:
+### 2. Create Trading Signals Table
+Run `supabase/schema-signals.sql` to create the `trading_signals` table:
 
-**Current Policies**:
+```sql
+CREATE TABLE IF NOT EXISTS trading_signals (
+  id BIGSERIAL PRIMARY KEY,
+  symbol TEXT NOT NULL,
+  interval TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  candles_timestamp BIGINT NOT NULL,
+  signal TEXT NOT NULL CHECK (signal IN ('BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL')),
+  confidence DECIMAL(5,2) CHECK (confidence >= 0 AND confidence <= 100),
+  indicators_data JSONB NOT NULL,
+  ai_reasoning TEXT,
+  ai_model TEXT DEFAULT 'claude-sonnet-4',
+  processing_time_ms INTEGER,
+  CONSTRAINT unique_signal_per_interval UNIQUE (symbol, interval, candles_timestamp)
+);
+
+CREATE INDEX idx_signals_symbol_interval ON trading_signals(symbol, interval);
+CREATE INDEX idx_signals_created_at ON trading_signals(created_at DESC);
+CREATE INDEX idx_signals_signal ON trading_signals(signal);
+```
+
+### 3. Configure RLS (Row Level Security)
+Run RLS policies for both tables:
+
+**Candles table**:
 - `candles_select`: Public read access (anyone with anon key)
 - No INSERT/UPDATE/DELETE policies for anon key (blocked by default)
 - Backend uses `service_role` key which bypasses RLS automatically
+
+**Trading signals table**:
+- `trading_signals_select`: Public read access (anyone with anon key)
+- No INSERT/UPDATE/DELETE policies for anon key (blocked by default)
+- Backend uses `service_role` key which bypasses RLS automatically
+
+```sql
+-- Enable RLS
+ALTER TABLE trading_signals ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access
+CREATE POLICY "trading_signals_select" ON trading_signals
+  FOR SELECT USING (true);
+```
 
 **Why this is secure**:
 - Frontend (anon key) can only SELECT data
 - Only backend (service_role) can INSERT/UPDATE/DELETE
 - service_role key is never exposed to the client
-- Even if anon key leaks, attackers can only read public cache data
+- Even if anon key leaks, attackers can only read public data
 
-### 3. Set Up Daily Cleanup Cron
-In Supabase Dashboard → Database → Cron Jobs:
+### 4. Set Up Cleanup Cron (Optional)
 
-**IMPORTANT**: First enable `pg_cron` extension in Supabase Dashboard → Database → Extensions
+To delete old signals (>30 days):
 
-Then run this SQL to schedule the cleanup:
 ```sql
--- Run daily at 00:00 (midnight) - Deletes candles older than 24h
+-- Enable pg_cron extension
+-- (In Supabase Dashboard → Database → Extensions)
+
+-- Create cleanup function
+CREATE OR REPLACE FUNCTION cleanup_old_signals()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM trading_signals
+  WHERE created_at < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Schedule daily cleanup at 01:00
 SELECT cron.schedule(
-  'cleanup-old-candles',
-  '0 0 * * *',
-  'SELECT cleanup_old_candles()'
+  'cleanup-old-signals',
+  '0 1 * * *',
+  'SELECT cleanup_old_signals()'
 );
 ```
 
-**Note**: This calls the `cleanup_old_candles()` function which only deletes data older than 24 hours, not all data.
+## API Endpoints
 
-To verify the cron job is scheduled:
-```sql
-SELECT * FROM cron.job;
-```
+### POST /api/analyze-signals
 
-To remove the scheduled job:
-```sql
-SELECT cron.unschedule('cleanup-old-candles');
-```
-
-## API Endpoint
-
-### POST /api/candles
-
-**Purpose**: Fetch candles from Hyperliquid and cache in Supabase
+**Purpose**: Main pipeline - fetches candles, calculates indicators, gets AI analysis, saves signal
 
 **Request**:
 ```json
 {
-  "symbol": "BTC",
-  "interval": "1h",
+  "symbols": ["BTC", "ETH", "SOL"],
+  "interval": "4h",
   "limit": 100
 }
 ```
 
 **Valid symbols**: BTC, ETH, SOL, AVAX, ARB, MATIC, DOGE, LINK
-**Valid intervals**: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d, 3d, 1w, 1M
-**Limit range**: 1-500
+**Valid intervals**: 1m, 5m, 15m, 1h, 4h, 1d
+**Limit range**: 1-500 (recommended: 100)
 
 **Response (Success)**:
 ```json
 {
   "success": true,
-  "count": 100,
-  "symbol": "BTC",
-  "interval": "1h"
+  "signals": [
+    {
+      "symbol": "BTC",
+      "interval": "4h",
+      "candles_timestamp": 1234567890,
+      "signal": "BUY",
+      "confidence": 75.5,
+      "indicators_data": { "rsi": [45.2], "sma_20": [...] },
+      "ai_reasoning": "Strong uptrend with RSI not overbought",
+      "ai_model": "claude-sonnet-4-20250514",
+      "processing_time_ms": 3450
+    }
+  ],
+  "processing_time_ms": 5200
 }
 ```
 
 **Response (Error)**:
 ```json
 {
-  "error": "Invalid symbol: XYZ"
+  "error": "Missing Anthropic API key"
+}
+```
+
+### POST /api/candles (Deprecated)
+
+This endpoint is **deprecated** and will be removed. Use `/api/analyze-signals` instead.
+
+## Cron Job Setup
+
+### Option 1: GitHub Actions (Free, Recommended)
+
+Create `.github/workflows/trading-signals.yml`:
+
+```yaml
+name: Generate Trading Signals
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Every 4 hours
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger analysis
+        run: |
+          curl -X POST https://your-app.vercel.app/api/analyze-signals \
+            -H "Content-Type: application/json" \
+            -d '{"symbols": ["BTC", "ETH", "SOL"], "interval": "4h", "limit": 100}'
+```
+
+**Advantages**:
+- Completely free
+- Runs on GitHub's infrastructure
+- Easy to monitor (Actions tab)
+- Can trigger manually for testing
+
+### Option 2: External Cron (cron-job.org - Free)
+
+1. Create account at [cron-job.org](https://cron-job.org)
+2. Add new cron job:
+   - URL: `https://your-app.vercel.app/api/analyze-signals`
+   - Method: POST
+   - Headers: `Content-Type: application/json`
+   - Body: `{"symbols": ["BTC", "ETH", "SOL"], "interval": "4h", "limit": 100}`
+   - Schedule: `0 */4 * * *` (every 4 hours)
+
+### Option 3: Vercel Cron (Requires PRO plan - $20/month)
+
+Create `vercel.json`:
+```json
+{
+  "crons": [{
+    "path": "/api/analyze-signals",
+    "schedule": "0 */4 * * *"
+  }]
 }
 ```
 
@@ -244,30 +399,12 @@ SELECT cron.unschedule('cleanup-old-candles');
 vercel --prod
 ```
 
-## Automation (Optional)
-
-By default, the cache is filled **on-demand** (when users open the app). To pre-fill cache automatically:
-
-### Option 1: External Cron (Free)
-Use cron-job.org or similar:
-1. Create account at cron-job.org
-2. Add new cron job: `POST https://your-app.vercel.app/api/candles`
-3. Body: `{"symbol": "BTC", "interval": "1h", "limit": 100}`
-4. Schedule: Daily at 00:05 (5 minutes after DB cleanup)
-
-### Option 2: Vercel Cron (Requires PRO plan)
-Create `vercel.json`:
-```json
-{
-  "crons": [{
-    "path": "/api/refresh-cache",
-    "schedule": "5 0 * * *"
-  }]
-}
-```
-
-### Option 3: Supabase Edge Function
-Create a Supabase function that fetches and saves data, triggered by pg_cron.
+### Post-Deployment Checklist
+1. Verify environment variables are set in Vercel Dashboard
+2. Test `/api/analyze-signals` endpoint manually
+3. Set up cron job (GitHub Actions or cron-job.org)
+4. Monitor first few automated runs
+5. Check Supabase `trading_signals` table for new entries
 
 ## Code Style Guidelines
 
@@ -277,67 +414,105 @@ Create a Supabase function that fetches and saves data, triggered by pg_cron.
 - Prefer functional components with hooks
 - Use descriptive variable and function names
 - Add JSDoc comments for complex functions
+- Keep AI prompts concise but clear
+- Always validate AI responses before saving
 
 ## Glossary
 
 | Term | Definition | Example in this project |
 |------|------------|-------------------------|
-| **API** | Application Programming Interface - way for programs to communicate | `/api/candles` endpoint |
-| **Endpoint** | Specific URL path in an API | `POST /api/candles` |
+| **API** | Application Programming Interface - way for programs to communicate | `/api/analyze-signals` endpoint |
+| **Endpoint** | Specific URL path in an API | `POST /api/analyze-signals` |
 | **Serverless** | Code that runs on-demand without managing servers | Vercel Functions |
-| **REST** | Architecture style using HTTP methods (GET, POST, etc.) | Our API uses POST requests |
-| **WebSocket** | Real-time bidirectional connection (we DON'T use this) | N/A |
+| **Cron** | Scheduled task that runs automatically | Every 4 hours signal generation |
 | **RLS** | Row Level Security - database-level access control | Supabase policies |
 | **Service Role** | Admin-level database key that bypasses RLS | Backend API uses this |
 | **Anon Key** | Public database key with limited permissions | Frontend uses this |
-| **Cache** | Temporary storage for faster data access | Supabase stores last 24h |
-| **Cron** | Scheduled task that runs automatically | Daily 00:00 cleanup |
+| **TOON** | Compressed JSON format optimized for LLMs | Used for AI prompt efficiency |
+| **TanStack Query** | React data fetching/caching library | Replaces manual cache management |
+| **Trading Signal** | AI-generated recommendation (BUY/SELL/HOLD) | Generated every 4h |
 
 ## Data Types
 
 ### Candle Intervals
-`1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `8h`, `12h`, `1d`, `3d`, `1w`, `1M`
+Recommended for AI analysis: `4h`, `1d`
+Also supported: `1m`, `5m`, `15m`, `1h`
 
 ### Supported Symbols
 `BTC`, `ETH`, `SOL`, `AVAX`, `ARB`, `MATIC`, `DOGE`, `LINK`
 
+### Trading Signals
+- `STRONG_BUY`: High confidence buy signal (RSI oversold, strong uptrend)
+- `BUY`: Moderate buy signal
+- `HOLD`: No clear direction or conflicting indicators
+- `SELL`: Moderate sell signal
+- `STRONG_SELL`: High confidence sell signal (RSI overbought, strong downtrend)
+
 ### Technical Indicators
-- **SMA** (Simple Moving Average)
-- **EMA** (Exponential Moving Average)
-- **RSI** (Relative Strength Index)
-- **MACD** (Moving Average Convergence Divergence)
-- **BB** (Bollinger Bands)
-- **ATR** (Average True Range)
+- **SMA** (Simple Moving Average) - 20, 50 periods
+- **EMA** (Exponential Moving Average) - 12, 26 periods
+- **RSI** (Relative Strength Index) - 14 periods (overbought >70, oversold <30)
+- **MACD** (Moving Average Convergence Divergence) - Signal line crossovers
+- **BB** (Bollinger Bands) - 20 periods, 2 std dev
+- **ATR** (Average True Range) - Volatility indicator
+- **Stochastic** (Stochastic Oscillator)
+- **Parabolic SAR** (Stop and Reverse)
 
 See `src/types/database.ts` for complete type definitions.
 
+## Costs Estimation
+
+| Service | Plan | Monthly Cost |
+|---------|------|--------------|
+| **Supabase** | Free | $0 (up to 500MB DB) |
+| **Vercel** | Hobby | $0 (serverless functions included) |
+| **GitHub Actions** | Free | $0 (2000 min/month) |
+| **Anthropic API** | Pay-as-you-go | ~$1-2 (540 requests/month) |
+| **Total** | | **~$1-2/month** |
+
+**Breakdown**:
+- 6 cron runs/day × 30 days = 180 runs/month
+- 3 symbols per run = 540 AI requests/month
+- Claude Sonnet 4: ~$0.003 per request (depends on token usage)
+
 ## Troubleshooting
 
-### API not working in local development
-- Use `vercel dev` instead of `npm run dev`
-- Ensure `.env` file exists with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
-- Restart `vercel dev` after changing .env
-
-### Data not showing in production
-- Check Vercel environment variables are set
-- Verify Supabase RLS policies are active
+### Cron job not running
+- Check GitHub Actions tab for errors
+- Verify cron-job.org is active and not paused
 - Check Vercel function logs for errors
-- Confirm Supabase is not experiencing outages
+- Ensure endpoint is publicly accessible
 
-### Cache always empty
-- Check Supabase cron job is running
-- Verify someone has opened the app after 00:00 to trigger refresh
-- Consider setting up external cron (see Automation section)
+### AI analysis failing
+- Verify `ANTHROPIC_API_KEY` is set in Vercel environment variables
+- Check API key has sufficient credits
+- Review Vercel function logs for error messages
+- Ensure TOON data format is valid
+- Check if prompt is within token limits
 
-### Supabase connection not working (falls back to Hyperliquid)
-- **Most common cause**: Missing variables in `.env.local`
-  - When you run `vercel dev`, it creates `.env.local` which takes priority over `.env`
-  - You MUST copy `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to `.env.local`
-- Check browser console for `[Supabase Client] Initialized successfully` message
-- Verify environment variables are loaded: check for `[Supabase Client] URL:` logs
-- Restart dev server after modifying `.env` or `.env.local`
+### No signals appearing in frontend
+- Verify cron has run at least once (check `trading_signals` table)
+- Check TanStack Query devtools for errors
+- Verify Supabase RLS policies allow SELECT
+- Check browser console for errors
+- Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set
 
-### Cache has data but app still calls API
-- This is expected if cache has less than 50 candles (MIN_CANDLES_THRESHOLD)
-- Check logs: `[DataService] Cache is fresh but insufficient (X/50)`
-- The app will refresh to get full dataset even if latest candle is recent
+### Signals have low quality / incorrect
+- Review AI reasoning in `ai_reasoning` column
+- Adjust prompt in `/api/analyze-signals` to be more specific
+- Increase number of candles analyzed (limit parameter)
+- Add more technical indicators to analysis
+- Fine-tune indicator parameters (e.g., RSI period)
+
+### High API costs
+- Reduce cron frequency (e.g., every 8h instead of 4h)
+- Reduce number of symbols analyzed per run
+- Optimize TOON format to use fewer tokens
+- Use Claude Haiku (cheaper) instead of Sonnet for testing
+- Add caching layer to avoid duplicate analyses
+
+### TanStack Query not updating
+- Check `refetchInterval` is set correctly (4 hours)
+- Verify `staleTime` matches cron frequency
+- Use `invalidateQueries` when needed
+- Check Realtime subscription is active (if enabled)
