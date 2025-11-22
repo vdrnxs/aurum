@@ -1,4 +1,5 @@
 import { encode, decode } from '@toon-format/toon';
+import { encode as encodeTokens } from 'gpt-tokenizer';
 import { IndicatorService } from './indicators';
 import type { Candle } from '../types/database';
 
@@ -107,7 +108,7 @@ export class ToonService {
           close: c.close,
           volume: c.volume,
         })),
-        sma: IndicatorService.calculateSMA(candles, 100).slice(-historyLimit),
+        sma: IndicatorService.calculateSMA(candles, 20).slice(-historyLimit),
         rsi: IndicatorService.calculateRSI(candles, 14).slice(-historyLimit),
       },
     };
@@ -126,6 +127,7 @@ export class ToonService {
 
   /**
    * Compares token count between JSON and TOON encodings
+   * Uses GPT tokenizer (cl100k_base) for accurate token counting
    * Utility for debugging and optimization analysis
    *
    * @param data - Any JSON-serializable data
@@ -140,9 +142,9 @@ export class ToonService {
     const jsonString = JSON.stringify(data);
     const toonString = encode(data);
 
-    // Rough token estimation (1 token ≈ 4 characters)
-    const jsonTokens = Math.ceil(jsonString.length / 4);
-    const toonTokens = Math.ceil(toonString.length / 4);
+    // Use actual GPT tokenizer for accurate token counting (cl100k_base encoding used by GPT-4)
+    const jsonTokens = encodeTokens(jsonString).length;
+    const toonTokens = encodeTokens(toonString).length;
     const reduction = jsonTokens - toonTokens;
     const reductionPercent = ((reduction / jsonTokens) * 100).toFixed(1);
 

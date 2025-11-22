@@ -29,9 +29,28 @@ export interface ATRResult extends IndicatorResult {
   period: number;
 }
 
+export interface EMAResult extends IndicatorResult {
+  period: number;
+}
+
+export interface PSARResult {
+  timestamp: number;
+  value: number;
+  trend: number;
+}
+
+export interface StochResult {
+  timestamp: number;
+  k: number;
+  d: number;
+}
+
 export interface LatestIndicators {
   price: number;
-  sma100: number;
+  sma: {
+    sma20: number;
+    sma50: number;
+  };
   rsi: number;
   macd: {
     line: number;
@@ -44,6 +63,19 @@ export interface LatestIndicators {
     lower: number;
   };
   atr: number;
+  ema: {
+    ema9: number;
+    ema21: number;
+    ema50: number;
+  };
+  psar: {
+    value: number;
+    trend: number;
+  };
+  stochastic: {
+    k: number;
+    d: number;
+  };
 }
 
 export type IndicatorType = 'SMA' | 'RSI' | 'MACD' | 'BB' | 'ATR';

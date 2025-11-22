@@ -49,6 +49,12 @@ export function ToonComparison({ candles, symbol, interval }: ToonComparisonProp
   const displayData = format === 'toon' ? toonData : jsonData;
   const charCount = displayData.length;
 
+  // Character counts for both formats
+  const jsonCharCount = jsonData.length;
+  const toonCharCount = toonData.length;
+  const charReduction = jsonCharCount - toonCharCount;
+  const charReductionPercent = ((charReduction / jsonCharCount) * 100).toFixed(1);
+
   return (
     <div className="space-y-4">
       {/* Unified Optimization Card */}
@@ -59,24 +65,50 @@ export function ToonComparison({ candles, symbol, interval }: ToonComparisonProp
         </Text>
 
         {/* Token Metrics */}
-        <Grid numItemsSm={2} numItemsLg={4} className="gap-4 mb-6">
-          <Col>
-            <Text className="text-xs text-gray-500">JSON Tokens</Text>
-            <Metric className="mt-1">{comparison.jsonTokens.toLocaleString()}</Metric>
-          </Col>
-          <Col>
-            <Text className="text-xs text-gray-500">TOON Tokens</Text>
-            <Metric className="mt-1">{comparison.toonTokens.toLocaleString()}</Metric>
-          </Col>
-          <Col>
-            <Text className="text-xs text-gray-500">Tokens Saved</Text>
-            <Metric className="mt-1">{comparison.reduction.toLocaleString()}</Metric>
-          </Col>
-          <Col>
-            <Text className="text-xs text-gray-500">Efficiency Gain</Text>
-            <Metric className="mt-1">{comparison.reductionPercent}</Metric>
-          </Col>
-        </Grid>
+        <div className="mb-4">
+          <Text className="text-sm font-medium mb-3">Token Comparison</Text>
+          <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
+            <Col>
+              <Text className="text-xs text-gray-500">JSON Tokens</Text>
+              <Metric className="mt-1">{comparison.jsonTokens.toLocaleString()}</Metric>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">TOON Tokens</Text>
+              <Metric className="mt-1">{comparison.toonTokens.toLocaleString()}</Metric>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">Tokens Saved</Text>
+              <Metric className="mt-1">{comparison.reduction.toLocaleString()}</Metric>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">Efficiency Gain</Text>
+              <Metric className="mt-1">{comparison.reductionPercent}</Metric>
+            </Col>
+          </Grid>
+        </div>
+
+        {/* Character Metrics */}
+        <div className="mb-6">
+          <Text className="text-sm font-medium mb-3">Character Comparison</Text>
+          <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
+            <Col>
+              <Text className="text-xs text-gray-500">JSON Characters</Text>
+              <Metric className="mt-1">{jsonCharCount.toLocaleString()}</Metric>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">TOON Characters</Text>
+              <Metric className="mt-1">{toonCharCount.toLocaleString()}</Metric>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">Characters Saved</Text>
+              <Metric className="mt-1">{charReduction.toLocaleString()}</Metric>
+            </Col>
+            <Col>
+              <Text className="text-xs text-gray-500">Size Reduction</Text>
+              <Metric className="mt-1">{charReductionPercent}%</Metric>
+            </Col>
+          </Grid>
+        </div>
 
         {/* Divider */}
         <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
