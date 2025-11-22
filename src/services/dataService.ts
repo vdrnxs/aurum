@@ -34,6 +34,7 @@ async function refreshCache(
 
 export class DataService {
   private static readonly DEFAULT_CACHE_AGE = 1 * 60 * 60 * 1000; // 1 hour
+  private static readonly MIN_CANDLES_THRESHOLD = 50; // Mínimo de candles requeridas
 
   static async getCandles(
     symbol: CryptoSymbol,
@@ -61,40 +62,56 @@ export class DataService {
       };
     }
 
+    // Verificar si tenemos datos en cache
     const latestCandle = await getLatestCandle(symbol, interval);
 
     if (!latestCandle) {
       console.log(
-        `No cached data for ${symbol} ${interval}, fetching from API...`
+        `[DataService] No cached data for ${symbol} ${interval}, fetching from API...`
       );
       return await this.fetchFromAPI(symbol, interval, limit);
     }
 
+    // Obtener todos los candles en cache para verificar cantidad
+    const cachedCandles = await getLatestCandles(symbol, interval, limit);
+    const cachedCount = cachedCandles.length;
+
+    console.log(
+      `[DataService] Cache has ${cachedCount}/${limit} candles for ${symbol} ${interval}`
+    );
+
+    // Verificar si la última candle es reciente
     const isFresh = HyperliquidService.isFreshData(latestCandle, maxCacheAgeMs);
-
-    if (isFresh) {
-      const cacheAge = Math.round(
-        (Date.now() - new Date(latestCandle.created_at).getTime()) / 1000 / 60
-      );
-      console.log(
-        `Using cached data for ${symbol} ${interval} (cached ${cacheAge} min ago)`
-      );
-      const cachedCandles = await getLatestCandles(symbol, interval, limit);
-      return {
-        candles: cachedCandles,
-        source: 'cache',
-        timestamp: latestCandle.open_time,
-        isFresh: true,
-      };
-    }
-
     const cacheAge = Math.round(
       (Date.now() - new Date(latestCandle.created_at).getTime()) / 1000 / 60
     );
+
+    // Decidir si necesitamos refrescar
+    const needsRefresh = !isFresh || cachedCount < this.MIN_CANDLES_THRESHOLD;
+
+    if (needsRefresh) {
+      if (!isFresh) {
+        console.log(
+          `[DataService] Cache is stale (${cacheAge} min old), fetching from API...`
+        );
+      } else {
+        console.log(
+          `[DataService] Cache is fresh but insufficient (${cachedCount}/${this.MIN_CANDLES_THRESHOLD}), fetching from API...`
+        );
+      }
+      return await this.fetchFromAPI(symbol, interval, limit);
+    }
+
+    // Cache es fresco y suficiente
     console.log(
-      `Cached data for ${symbol} ${interval} is stale (${cacheAge} min old), fetching from API...`
+      `[DataService] Using cached data for ${symbol} ${interval} (cached ${cacheAge} min ago, ${cachedCount} candles)`
     );
-    return await this.fetchFromAPI(symbol, interval, limit);
+    return {
+      candles: cachedCandles,
+      source: 'cache',
+      timestamp: latestCandle.open_time,
+      isFresh: true,
+    };
   }
 
   private static async fetchFromAPI(

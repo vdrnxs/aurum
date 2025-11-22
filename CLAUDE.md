@@ -37,7 +37,7 @@ Aurum is a financial dashboard application that visualizes OHLCV (Open, High, Lo
 │                  SUPABASE (PostgreSQL)                      │
 │  - Table: candles                                           │
 │  - RLS: SELECT public, INSERT/UPDATE/DELETE service_role    │
-│  - Cron: Clears all data daily at 00:00                     │
+│  - Cron: Deletes data older than 24h at 00:00               │
 │  - Acts as cache (not permanent storage)                    │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -59,9 +59,10 @@ Aurum is a financial dashboard application that visualizes OHLCV (Open, High, Lo
 7. Technical indicators calculated client-side
 
 **Cache Strategy**:
-- Supabase acts as temporary cache (cleared daily at 00:00)
-- Cache is considered fresh for 1 hour
-- First user after 00:00 triggers cache refresh for everyone
+- Supabase acts as temporary cache (data >24h deleted daily at 00:00)
+- Cache is considered fresh for 1 hour OR if it has at least 50 candles
+- If cache is stale (>1h old) OR has less than 50 candles → API refresh
+- API uses upsert to prevent duplicates when refreshing cache
 
 ## Technology Stack
 
@@ -168,13 +169,29 @@ Run `supabase/rls-policies.sql` to set up secure policies:
 
 ### 3. Set Up Daily Cleanup Cron
 In Supabase Dashboard → Database → Cron Jobs:
+
+**IMPORTANT**: First enable `pg_cron` extension in Supabase Dashboard → Database → Extensions
+
+Then run this SQL to schedule the cleanup:
 ```sql
--- Run daily at 00:00 (midnight)
+-- Run daily at 00:00 (midnight) - Deletes candles older than 24h
 SELECT cron.schedule(
   'cleanup-old-candles',
   '0 0 * * *',
-  'DELETE FROM candles'
+  'SELECT cleanup_old_candles()'
 );
+```
+
+**Note**: This calls the `cleanup_old_candles()` function which only deletes data older than 24 hours, not all data.
+
+To verify the cron job is scheduled:
+```sql
+SELECT * FROM cron.job;
+```
+
+To remove the scheduled job:
+```sql
+SELECT cron.unschedule('cleanup-old-candles');
 ```
 
 ## API Endpoint
@@ -311,3 +328,16 @@ See `src/types/database.ts` for complete type definitions.
 - Check Supabase cron job is running
 - Verify someone has opened the app after 00:00 to trigger refresh
 - Consider setting up external cron (see Automation section)
+
+### Supabase connection not working (falls back to Hyperliquid)
+- **Most common cause**: Missing variables in `.env.local`
+  - When you run `vercel dev`, it creates `.env.local` which takes priority over `.env`
+  - You MUST copy `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to `.env.local`
+- Check browser console for `[Supabase Client] Initialized successfully` message
+- Verify environment variables are loaded: check for `[Supabase Client] URL:` logs
+- Restart dev server after modifying `.env` or `.env.local`
+
+### Cache has data but app still calls API
+- This is expected if cache has less than 50 candles (MIN_CANDLES_THRESHOLD)
+- Check logs: `[DataService] Cache is fresh but insufficient (X/50)`
+- The app will refresh to get full dataset even if latest candle is recent

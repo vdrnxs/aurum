@@ -15,7 +15,8 @@
       "Bash(npm show:*)",
       "Bash(dir:*)",
       "Bash(rm:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(node test-supabase.js)"
     ],
     "deny": [],
     "ask": []
