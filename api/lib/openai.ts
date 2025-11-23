@@ -1,4 +1,4 @@
-const OPENAI_API_KEY = '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';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
