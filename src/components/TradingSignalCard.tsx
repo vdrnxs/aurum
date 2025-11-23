@@ -89,17 +89,20 @@ export function TradingSignalCard({ signal }: TradingSignalCardProps) {
 
   return (
     <Card>
-      {/* Header: Signal Type & Confidence */}
-      <div className="flex items-start justify-between">
+      {/* Header: Inline Style */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Title className="text-3xl">{signal.signal.replace('_', ' ')}</Title>
-          <Badge color={signalColor} size="xl">
-            {signal.confidence.toFixed(0)}%
+          <Badge color="slate" size="sm">
+            {signal.symbol}
           </Badge>
+          <Title className="text-2xl m-0">{signal.signal.replace('_', ' ')}</Title>
         </div>
-        <Text className="text-tremor-content-subtle">
-          {signal.symbol} • {signal.interval}
-        </Text>
+        <div className="text-right">
+          <Text className="text-xs text-tremor-content-subtle uppercase tracking-wide">Confidence</Text>
+          <Text className="text-2xl font-semibold" style={{ color: `var(--${signalColor}-500)` }}>
+            {signal.confidence.toFixed(0)}%
+          </Text>
+        </div>
       </div>
 
       {/* Entry Price - Hero Section */}
@@ -156,11 +159,17 @@ export function TradingSignalCard({ signal }: TradingSignalCardProps) {
 
       {/* Footer: Timestamps */}
       <div className={`${SPACING.mt.lg} flex justify-between border-t border-tremor-border dark:border-dark-tremor-border pt-4`}>
+        <div className="flex items-center gap-2">
+          <Text className="text-xs text-tremor-content-subtle">
+            {signal.interval} timeframe
+          </Text>
+          <span className="text-tremor-content-subtle">•</span>
+          <Text className="text-xs text-tremor-content-subtle">
+            {formatDateTime(signal.created_at)}
+          </Text>
+        </div>
         <Text className="text-xs text-tremor-content-subtle">
-          Signal generated: {formatDateTime(signal.created_at)}
-        </Text>
-        <Text className="text-xs text-tremor-content-subtle">
-          Data from: {formatTimestamp(signal.candles_timestamp)}
+          Data: {formatTimestamp(signal.candles_timestamp)}
         </Text>
       </div>
     </Card>
