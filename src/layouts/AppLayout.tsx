@@ -1,5 +1,6 @@
 import { Button } from '@tremor/react';
 import { useEffect, useState } from 'react';
+import { LAYOUT, SPACING } from '../lib/styles';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -61,15 +62,15 @@ export function AppLayout({
     <div className="min-h-screen bg-tremor-background-muted dark:bg-dark-tremor-background">
       {/* Header */}
       <header className="bg-tremor-background dark:bg-dark-tremor-background-subtle border-b border-tremor-border dark:border-dark-tremor-border">
-        <div className="mx-auto max-w-screen-2xl px-6 py-4">
+        <div className={`${LAYOUT.container} ${LAYOUT.headerPadding}`}>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</h1>
               {subtitle && (
-                <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content mt-1">{subtitle}</p>
+                <p className={`text-tremor-default text-tremor-content dark:text-dark-tremor-content ${SPACING.mt.xs}`}>{subtitle}</p>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center ${SPACING.gap.md}`}>
               <ThemeToggle />
               {actions}
             </div>
@@ -78,7 +79,7 @@ export function AppLayout({
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-screen-2xl px-6 py-6">
+      <main className={`${LAYOUT.container} ${LAYOUT.pagePadding}`}>
         {children}
       </main>
     </div>

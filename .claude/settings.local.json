@@ -16,7 +16,17 @@
       "Bash(dir:*)",
       "Bash(rm:*)",
       "Bash(npx tsx:*)",
-      "Bash(node test-supabase.js)"
+      "Bash(node test-supabase.js)",
+      "Bash(taskkill:*)",
+      "Bash(Get-Process -Name node 2)",
+      "Bash($null)",
+      "Bash(Stop-Process -Force 2)",
+      "Bash(Start-Sleep 2)",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "ask": []

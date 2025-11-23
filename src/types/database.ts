@@ -34,3 +34,22 @@ export type CandleInterval =
 export type CryptoSymbol = 'BTC' | 'ETH' | string;
 
 export type CandleInsert = Omit<Candle, 'id' | 'created_at'>;
+
+// Trading Signal Types
+export type SignalType = 'BUY' | 'SELL' | 'HOLD' | 'STRONG_BUY' | 'STRONG_SELL';
+
+export interface TradingSignal {
+  id: number;
+  symbol: string;
+  interval: string;
+  created_at: string;
+  candles_timestamp: number;
+  signal: SignalType;
+  confidence: number;
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+  ai_reasoning: string | null;
+  toon_data?: string | null;
+  indicators_data?: Record<string, any> | null;
+}
