@@ -66,6 +66,11 @@ export const COLORS = {
   error: 'text-red-600 dark:text-red-400',
   success: 'text-green-600 dark:text-green-400',
   warning: 'text-orange-600 dark:text-orange-400',
+
+  // Trading-specific colors
+  profit: 'text-emerald-600 dark:text-emerald-500',
+  loss: 'text-red-600 dark:text-red-500',
+  neutral: 'text-tremor-content-subtle dark:text-dark-tremor-content-subtle',
 } as const;
 
 export const COMPONENTS = {
