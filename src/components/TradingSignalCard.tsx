@@ -65,15 +65,18 @@ function calculateRiskReward(
 ): number | null {
   if (!entryPrice || !stopLoss || !takeProfit) return null;
 
+  // For HOLD signals, return null (no clear direction)
+  if (signal === 'HOLD') return null;
+
   const isBuy = signal === 'BUY' || signal === 'STRONG_BUY';
 
   if (isBuy) {
-    const risk = entryPrice - stopLoss;
-    const reward = takeProfit - entryPrice;
+    const risk = Math.abs(entryPrice - stopLoss);
+    const reward = Math.abs(takeProfit - entryPrice);
     return risk > 0 ? reward / risk : null;
   } else {
-    const risk = stopLoss - entryPrice;
-    const reward = entryPrice - takeProfit;
+    const risk = Math.abs(stopLoss - entryPrice);
+    const reward = Math.abs(entryPrice - takeProfit);
     return risk > 0 ? reward / risk : null;
   }
 }

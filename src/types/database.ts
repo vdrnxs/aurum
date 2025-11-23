@@ -46,6 +46,7 @@ export interface TradingSignal {
   candles_timestamp: number;
   signal: SignalType;
   confidence: number;
+  current_price: number | null;
   entry_price: number | null;
   stop_loss: number | null;
   take_profit: number | null;

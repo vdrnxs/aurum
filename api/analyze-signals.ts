@@ -135,6 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         candles_timestamp: latestCandle.open_time,
         signal: aiSignal.signal,
         confidence: aiSignal.confidence,
+        current_price: latestCandle.close,
         entry_price: aiSignal.entry_price,
         stop_loss: aiSignal.stop_loss,
         take_profit: aiSignal.take_profit,

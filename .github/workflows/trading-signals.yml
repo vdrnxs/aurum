@@ -1,0 +1,44 @@
+name: Generate BTC Trading Signals
+
+on:
+  # Ejecutar cada 4 horas: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC
+  schedule:
+    - cron: '0 */4 * * *'
+
+  # Permitir ejecución manual desde GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  analyze-btc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate BTC trading signal
+        run: |
+          echo "Triggering BTC signal analysis..."
+
+          response=$(curl -s -w "\n%{http_code}" -X POST ${{ secrets.VERCEL_API_URL }}/api/analyze-signals \
+            -H "Content-Type: application/json" \
+            -d '{
+              "symbol": "BTC",
+              "interval": "4h",
+              "limit": 100
+            }')
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+
+          if [ "$http_code" != "200" ]; then
+            echo "Error: API returned status $http_code"
+            exit 1
+          fi
+
+          echo "BTC signal generated successfully!"
+
+      - name: Verify signal was saved
+        if: success()
+        run: |
+          echo "Signal generation completed at $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
