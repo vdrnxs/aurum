@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aurum is an AI-powered cryptocurrency trading signal generator that analyzes OHLCV data from Hyperliquid using technical indicators and Claude AI to generate automated trading signals every 4 hours.
+Aurum is an AI-powered cryptocurrency trading signal generator that analyzes OHLCV data from Hyperliquid using technical indicators and OpenAI's GPT-4o-mini to generate automated trading signals every 4 hours.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ Aurum is an AI-powered cryptocurrency trading signal generator that analyzes OHL
 │  2. Save/update candles in Supabase (upsert)                    │
 │  3. Calculate technical indicators (SMA, EMA, RSI, MACD, etc.)  │
 │  4. Convert data to TOON format (compressed JSON)               │
-│  5. Send to Claude AI for analysis                              │
+│  5. Send to GPT-4o-mini for analysis                            │
 │  6. Parse AI response → trading signal (BUY/SELL/HOLD)          │
 │  7. Save signal to 'trading_signals' table                      │
 │                                                                 │
@@ -50,13 +50,13 @@ Aurum is an AI-powered cryptocurrency trading signal generator that analyzes OHL
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              FRONTEND (React + TanStack Query)                  │
+│              FRONTEND (React + Direct Supabase Queries)         │
 │                                                                 │
-│  - Fetch trading signals from Supabase                          │
-│  - TanStack Query handles local caching                         │
-│  - Display signals + charts + AI reasoning                      │
-│  - Auto-refresh when new signals arrive (Realtime optional)     │
-│  - No Hyperliquid API fallback needed                           │
+│  - Latest Signal Card: Entry, SL, TP, Risk/Reward               │
+│  - Signal History Table: Last 20 signals with full details      │
+│  - Fetch signals directly from Supabase (getLatestSignal)       │
+│  - Display AI reasoning and technical analysis                  │
+│  - No TanStack Query - simple useState + useEffect              │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -74,10 +74,10 @@ Aurum is an AI-powered cryptocurrency trading signal generator that analyzes OHL
 3. Candles saved to Supabase with upsert (no duplicates)
 4. Technical indicators calculated server-side
 5. Data converted to TOON format for efficient AI processing
-6. Claude AI analyzes data and generates trading signal
-7. Signal saved to `trading_signals` table
-8. Frontend reads signals via TanStack Query (cached locally)
-9. Optional: Realtime updates when new signals arrive
+6. GPT-4o-mini analyzes data and generates trading signal
+7. Signal saved to `btc_trading_signals` table with entry, SL, TP prices
+8. Frontend fetches latest signal + history via direct Supabase queries
+9. UI updates automatically on page load/refresh
 
 **Trading Signal Strategy**:
 - Signals generated every 4 hours at: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC
@@ -88,12 +88,11 @@ Aurum is an AI-powered cryptocurrency trading signal generator that analyzes OHL
 ## Technology Stack
 
 - **Frontend**: React 18, TypeScript, Vite
-- **State Management**: TanStack Query (React Query)
-- **Styling**: Tailwind CSS
-- **UI Components**: Tremor React
-- **Charts**: Tremor React (built on Recharts)
+- **State Management**: React Hooks (useState, useEffect)
+- **Styling**: Tailwind CSS + Custom Design System (src/lib/styles.ts)
+- **UI Components**: Tremor React (Table, Card, Badge, Text, Metric, Grid)
 - **Backend**: Vercel Serverless Functions (REST API)
-- **AI Analysis**: Claude API (Anthropic)
+- **AI Analysis**: OpenAI API (GPT-4o-mini)
 - **Data Format**: TOON (compressed JSON for LLMs)
 - **Data Source**: Hyperliquid REST API
 - **Database**: Supabase (PostgreSQL)
@@ -112,29 +111,28 @@ aurum/
 ├── src/
 │   ├── components/
 │   │   ├── CandlestickChart.tsx
-│   │   └── TradingSignalCard.tsx # Signal display component
+│   │   ├── TradingSignalCard.tsx    # Latest signal card (Entry, SL, TP, R/R)
+│   │   ├── SignalsHistoryTable.tsx  # Historical signals table (last 20)
+│   │   └── ToonViewer.tsx           # TOON data viewer (debug)
 │   │
-│   ├── hooks/
-│   │   ├── useCandles.ts       # (deprecated - will be removed)
-│   │   ├── useIndicators.ts    # (deprecated - indicators now server-side)
-│   │   └── useTradingSignals.ts # Fetch signals with TanStack Query
+│   ├── layouts/
+│   │   └── AppLayout.tsx            # Main app layout wrapper
 │   │
 │   ├── services/
-│   │   ├── candles.ts          # Supabase queries for candles
-│   │   ├── signals.ts          # Supabase queries for signals
-│   │   ├── dataService.ts      # (deprecated)
-│   │   ├── hyperliquid.ts      # (used by backend only)
-│   │   └── indicators.ts       # Technical indicators (shared with backend)
+│   │   ├── candles.ts               # Supabase queries for candles (deprecated)
+│   │   ├── signals.ts               # Supabase queries: getLatestSignal, getSignalHistory
+│   │   ├── hyperliquid.ts           # (used by backend only)
+│   │   └── indicators.ts            # Technical indicators (shared with backend)
 │   │
 │   ├── types/
-│   │   └── database.ts         # TypeScript type definitions
+│   │   └── database.ts              # TypeScript types: TradingSignal, SignalType, etc.
 │   │
 │   ├── lib/
-│   │   └── supabase.ts         # Supabase client (anon key)
+│   │   ├── supabase.ts              # Supabase client (anon key)
+│   │   └── styles.ts                # Design system: SPACING, COLORS, TYPOGRAPHY, LAYOUT
 │   │
 │   └── utils/
-│       ├── query-builder.ts    # Supabase query helpers
-│       └── supabase-error.ts   # Error handling
+│       └── supabase-error.ts        # Error handling
 │
 ├── supabase/
 │   ├── schema.sql              # Candles table schema
@@ -183,21 +181,21 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-ANTHROPIC_API_KEY=sk-ant-your-key-here
+OPENAI_API_KEY=sk-proj-your-key-here
 ```
 
 #### Production (Vercel Dashboard)
 Set these in Vercel project settings → Environment Variables:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY`
 - `VITE_SUPABASE_URL` (auto-injected to frontend build)
 - `VITE_SUPABASE_ANON_KEY` (auto-injected to frontend build)
 
 **Note**:
 - Variables with `VITE_` prefix are exposed to the frontend bundle
 - Backend variables (without prefix) are only accessible in serverless functions
-- Never expose `ANTHROPIC_API_KEY` to frontend
+- Never expose `OPENAI_API_KEY` to frontend
 
 ## Supabase Setup
 
@@ -218,7 +216,7 @@ CREATE TABLE IF NOT EXISTS trading_signals (
   confidence DECIMAL(5,2) CHECK (confidence >= 0 AND confidence <= 100),
   indicators_data JSONB NOT NULL,
   ai_reasoning TEXT,
-  ai_model TEXT DEFAULT 'claude-sonnet-4',
+  ai_model TEXT DEFAULT 'gpt-4o-mini',
   processing_time_ms INTEGER,
   CONSTRAINT unique_signal_per_interval UNIQUE (symbol, interval, candles_timestamp)
 );
@@ -313,7 +311,7 @@ SELECT cron.schedule(
       "confidence": 75.5,
       "indicators_data": { "rsi": [45.2], "sma_20": [...] },
       "ai_reasoning": "Strong uptrend with RSI not overbought",
-      "ai_model": "claude-sonnet-4-20250514",
+      "ai_model": "gpt-4o-mini",
       "processing_time_ms": 3450
     }
   ],
@@ -324,7 +322,7 @@ SELECT cron.schedule(
 **Response (Error)**:
 ```json
 {
-  "error": "Missing Anthropic API key"
+  "error": "Missing OpenAI API key"
 }
 ```
 
@@ -467,13 +465,16 @@ See `src/types/database.ts` for complete type definitions.
 | **Supabase** | Free | $0 (up to 500MB DB) |
 | **Vercel** | Hobby | $0 (serverless functions included) |
 | **GitHub Actions** | Free | $0 (2000 min/month) |
-| **Anthropic API** | Pay-as-you-go | ~$1-2 (540 requests/month) |
-| **Total** | | **~$1-2/month** |
+| **OpenAI API** | Pay-as-you-go | ~$0.10-$0.50 (540 requests/month) |
+| **Total** | | **~$0.10-$0.50/month** |
 
 **Breakdown**:
 - 6 cron runs/day × 30 days = 180 runs/month
 - 3 symbols per run = 540 AI requests/month
-- Claude Sonnet 4: ~$0.003 per request (depends on token usage)
+- GPT-4o-mini pricing: $0.150/1M input tokens, $0.600/1M output tokens
+- Average tokens per request: ~2000 input + 500 output
+- Cost per request: ~$0.0006
+- Estimated monthly total: $0.10-$0.50 USD
 
 ## Troubleshooting
 
@@ -484,18 +485,18 @@ See `src/types/database.ts` for complete type definitions.
 - Ensure endpoint is publicly accessible
 
 ### AI analysis failing
-- Verify `ANTHROPIC_API_KEY` is set in Vercel environment variables
+- Verify `OPENAI_API_KEY` is set in Vercel environment variables
 - Check API key has sufficient credits
 - Review Vercel function logs for error messages
 - Ensure TOON data format is valid
 - Check if prompt is within token limits
 
 ### No signals appearing in frontend
-- Verify cron has run at least once (check `trading_signals` table)
-- Check TanStack Query devtools for errors
-- Verify Supabase RLS policies allow SELECT
+- Verify cron has run at least once (check `btc_trading_signals` table in Supabase)
 - Check browser console for errors
+- Verify Supabase RLS policies allow SELECT on `btc_trading_signals`
 - Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set
+- Check `getLatestSignal()` and `getSignalHistory()` functions in signals.ts
 
 ### Signals have low quality / incorrect
 - Review AI reasoning in `ai_reasoning` column
@@ -508,11 +509,36 @@ See `src/types/database.ts` for complete type definitions.
 - Reduce cron frequency (e.g., every 8h instead of 4h)
 - Reduce number of symbols analyzed per run
 - Optimize TOON format to use fewer tokens
-- Use Claude Haiku (cheaper) instead of Sonnet for testing
+- Use GPT-4o-mini (already the cheapest model at ~$0.0006/request)
 - Add caching layer to avoid duplicate analyses
 
-### TanStack Query not updating
-- Check `refetchInterval` is set correctly (4 hours)
-- Verify `staleTime` matches cron frequency
-- Use `invalidateQueries` when needed
-- Check Realtime subscription is active (if enabled)
+## UI Components
+
+### TradingSignalCard
+Latest signal card displaying:
+- **Header**: Symbol badge + Signal type (BUY/SELL/HOLD) + Confidence %
+- **Entry Price**: Large hero section with entry price
+- **Risk Management Grid**: 3 cards showing SL, TP, and Risk/Reward ratio
+- **AI Analysis**: Expandable section with AI reasoning
+- **Styling**: Clean, no timestamp footer, focused on actionable data
+
+### SignalsHistoryTable
+Historical signals table with:
+- **Columns**: Created At, Symbol, Interval, Signal, Confidence, Entry Price, Current Price, Stop Loss, Take Profit
+- **Styling**:
+  - Centered: Symbol, Interval, Signal, Confidence
+  - Right-aligned: All prices (Entry, Current, SL, TP)
+  - Monospace font for prices
+  - Color-coded: SL (red), TP (green)
+  - Responsive with horizontal scroll
+- **Data**: Last 20 signals from Supabase
+
+### Design System (src/lib/styles.ts)
+Centralized design tokens:
+- **SPACING**: mt, mb, p, gap utilities
+- **LAYOUT**: container, contentContainer, maxWidth
+- **TYPOGRAPHY**: xs, sm, mono, emphasis
+- **COLORS**: error, success, warning, profit, loss, neutral
+- **COMPONENTS**: codeBlock, infoBox
+
+All components use this design system instead of hardcoded Tailwind classes.
