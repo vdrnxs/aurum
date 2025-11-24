@@ -35,28 +35,6 @@ function formatPrice(price: number | null): string {
   }).format(price);
 }
 
-function formatTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  }).format(date);
-}
-
-function formatDateTime(dateString: string): string {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  }).format(date);
-}
-
 function calculateRiskReward(
   entryPrice: number | null,
   stopLoss: number | null,
@@ -160,21 +138,6 @@ export function TradingSignalCard({ signal }: TradingSignalCardProps) {
         </div>
       )}
 
-      {/* Footer: Timestamps */}
-      <div className={`${SPACING.mt.lg} flex justify-between border-t border-tremor-border dark:border-dark-tremor-border pt-4`}>
-        <div className="flex items-center gap-2">
-          <Text className="text-xs text-tremor-content-subtle">
-            {signal.interval} timeframe
-          </Text>
-          <span className="text-tremor-content-subtle">•</span>
-          <Text className="text-xs text-tremor-content-subtle">
-            {formatDateTime(signal.created_at)}
-          </Text>
-        </div>
-        <Text className="text-xs text-tremor-content-subtle">
-          Data: {formatTimestamp(signal.candles_timestamp)}
-        </Text>
-      </div>
     </Card>
   );
 }

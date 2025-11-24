@@ -107,10 +107,6 @@ function App() {
       <div className={SPACING.section}>
         {/* Latest Signal Section */}
         <div className={LAYOUT.contentContainer}>
-          <Text className="text-tremor-content-subtle text-center">
-            Showing latest signal from database
-          </Text>
-
           <TradingSignalCard signal={signal} />
 
           {signal.toon_data && signal.indicators_data && (
