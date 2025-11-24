@@ -67,10 +67,6 @@ graph TB
     F --> G[Supabase PostgreSQL<br/>Store signal + metadata]
     G --> H[React Frontend<br/>Display dashboard]
 
-    style A fill:#e3f2fd
-    style F fill:#f3e5f5
-    style G fill:#e8f5e9
-    style H fill:#fff3e0
 ```
 
 ### Data Flow
