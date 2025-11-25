@@ -2,12 +2,13 @@ name: Generate BTC Trading Signals
 
 on:
   # Ejecutar 4 veces al día en horas estratégicas (UTC)
-  # 00:00 UTC - Asia market open
-  # 08:00 UTC - Europe market peak
-  # 14:00 UTC - US market open (9am EST)
-  # 20:00 UTC - End of US trading day
+  # Horarios ajustados para evitar alta carga de GitHub Actions (horas "en punto")
+  # 01:17 UTC - Asia market active (Tokyo morning)
+  # 09:17 UTC - Europe market peak (London morning)
+  # 15:17 UTC - US market active (10am EST)
+  # 21:17 UTC - End of US trading day + crypto evening activity
   schedule:
-    - cron: '0 0,8,14,20 * * *'
+    - cron: '17 1,9,15,21 * * *'
 
   # Permitir ejecución manual desde GitHub Actions UI
   workflow_dispatch:
