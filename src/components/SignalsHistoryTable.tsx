@@ -68,6 +68,9 @@ export function SignalsHistoryTable({ signals }: SignalsHistoryTableProps) {
         <TableBody>
           {signals.map((signal) => {
             const signalColor = getSignalColor(signal.signal);
+            // Detect HOLD signal
+            const isHold = signal.signal === 'HOLD' ||
+              (signal.entry_price === signal.stop_loss && signal.stop_loss === signal.take_profit);
 
             return (
               <TableRow key={signal.id}>
@@ -100,7 +103,13 @@ export function SignalsHistoryTable({ signals }: SignalsHistoryTableProps) {
                 </TableCell>
 
                 <TableCell className="text-right">
-                  <Text className="font-mono font-semibold">{formatPrice(signal.entry_price)}</Text>
+                  {isHold ? (
+                    <Text className="font-mono text-gray-500 dark:text-gray-400 italic">
+                      {formatPrice(signal.entry_price)}
+                    </Text>
+                  ) : (
+                    <Text className="font-mono font-semibold">{formatPrice(signal.entry_price)}</Text>
+                  )}
                 </TableCell>
 
                 <TableCell className="text-right">
@@ -108,11 +117,19 @@ export function SignalsHistoryTable({ signals }: SignalsHistoryTableProps) {
                 </TableCell>
 
                 <TableCell className="text-right">
-                  <Text className={`${COLORS.loss} font-mono font-semibold`}>{formatPrice(signal.stop_loss)}</Text>
+                  {isHold ? (
+                    <Text className="font-mono text-gray-400 dark:text-gray-500 text-sm">—</Text>
+                  ) : (
+                    <Text className={`${COLORS.loss} font-mono font-semibold`}>{formatPrice(signal.stop_loss)}</Text>
+                  )}
                 </TableCell>
 
                 <TableCell className="text-right">
-                  <Text className={`${COLORS.profit} font-mono font-semibold`}>{formatPrice(signal.take_profit)}</Text>
+                  {isHold ? (
+                    <Text className="font-mono text-gray-400 dark:text-gray-500 text-sm">—</Text>
+                  ) : (
+                    <Text className={`${COLORS.profit} font-mono font-semibold`}>{formatPrice(signal.take_profit)}</Text>
+                  )}
                 </TableCell>
               </TableRow>
             );

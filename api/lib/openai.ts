@@ -31,11 +31,18 @@ ENTRY PRICE LOGIC:
    - If price < EMA21 and RSI14 < 50: entry = EMA21 (wait for bounce)
    - If price near upper BB: entry = upper BB - (0.15 * ATR)
    - Else: entry = current price
-4. HOLD → entry = current price (irrelevant)
+4. HOLD → entry = current price, SL = current price, TP = current price (no trade)
 
 RISK MANAGEMENT:
-- SL: entry ± (2 * ATR) — below entry for BUY, above for SELL
-- TP: entry ± (4 * ATR) minimum — ensures 2:1 R/R, adjust to nearest BB/EMA if better
+- BUY signals:
+  * SL: entry - (2 * ATR)
+  * TP: entry + (4 * ATR) minimum, adjust to nearest resistance (upper BB/EMA) if better
+- SELL signals:
+  * SL: entry + (2 * ATR)
+  * TP: entry - (4 * ATR) minimum, adjust to nearest support (lower BB/EMA) if better
+- HOLD signals:
+  * SL: current price (no stop needed)
+  * TP: current price (no target needed)
 - Confidence: (agreeing_indicators / 8) * 100, round to integer
 
 ANALYSIS CHECKLIST:
