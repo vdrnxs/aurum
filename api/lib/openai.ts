@@ -16,10 +16,31 @@ DATA YOU RECEIVE:
 - current.stochastic: {k, d} (>80 overbought, <20 oversold)
 - recentHistory.prices: last 20 candles
 
-SIGNAL RULES:
-- STRONG_BUY/STRONG_SELL: 5+ indicators agree, high confluence
-- BUY/SELL: 3-4 indicators agree, moderate setup
-- HOLD: <3 indicators agree or conflicting signals
+SIGNAL RULES (Category-Based System):
+
+Evaluate 3 categories independently, then combine:
+
+1. TREND (SMA/EMA):
+   - BULLISH: price > SMA21 AND SMA21 > SMA50 AND EMA12 > EMA21
+   - BEARISH: price < SMA21 AND SMA21 < SMA50 AND EMA12 < EMA21
+   - NEUTRAL: Mixed or choppy
+
+2. MOMENTUM (RSI/MACD):
+   - BULLISH: (RSI14 > 50 OR RSI21 > 50) AND MACD histogram > 0
+   - BEARISH: (RSI14 < 50 OR RSI21 < 50) AND MACD histogram < 0
+   - NEUTRAL: Conflicting or ranging (40 < RSI < 60)
+
+3. TIMING (PSAR/Stochastic/BB):
+   - BULLISH: PSAR trend = 1 OR (Stoch K < 30 turning up) OR price near lower BB
+   - BEARISH: PSAR trend = -1 OR (Stoch K > 70 turning down) OR price near upper BB
+   - NEUTRAL: No clear timing signal
+
+COMBINE CATEGORIES:
+- STRONG_BUY: Trend=BULLISH + Momentum=BULLISH + Timing=BULLISH (3/3)
+- BUY: Trend=BULLISH + (Momentum=BULLISH OR Timing=BULLISH) (2/3 with trend bullish)
+- HOLD: Trend=NEUTRAL OR only 1 category bullish OR conflicting
+- SELL: Trend=BEARISH + (Momentum=BEARISH OR Timing=BEARISH) (2/3 with trend bearish)
+- STRONG_SELL: Trend=BEARISH + Momentum=BEARISH + Timing=BEARISH (3/3)
 
 ENTRY PRICE LOGIC:
 1. STRONG signals → immediate entry at current price (capture momentum)
@@ -43,14 +64,10 @@ RISK MANAGEMENT:
 - HOLD signals:
   * SL: current price (no stop needed)
   * TP: current price (no target needed)
-- Confidence: (agreeing_indicators / 8) * 100, round to integer
-
-ANALYSIS CHECKLIST:
-✓ Trend: Price position vs SMA21/50/100 and EMA12/21/55
-✓ Momentum: RSI14 vs RSI21 agreement, MACD histogram direction
-✓ Extremes: Stochastic overbought/oversold, price vs BB
-✓ Reversal: PSAR trend flip, divergences
-✓ Count confluence (how many indicators agree)
+- Confidence: Based on category agreement:
+  * 3/3 categories agree: 80-95%
+  * 2/3 categories agree: 60-75%
+  * 1/3 or conflicting: 30-50%
 
 OUTPUT (JSON only, no markdown):
 {
@@ -59,7 +76,7 @@ OUTPUT (JSON only, no markdown):
   "entry_price": number,
   "stop_loss": number,
   "take_profit": number,
-  "reasoning": "Concise analysis (300-500 chars): 1) Trend direction, 2) Momentum signals, 3) Entry rationale, 4) Key risks. Use specific values (e.g., 'RSI14=72, overbought')."
+  "reasoning": "Start with categories, then explain. Format: 'Trend: BULLISH (price=$X > SMA21=$Y, EMA12>EMA21). Momentum: BULLISH (RSI14=Z, MACD hist=+W). Timing: NEUTRAL/BULLISH/BEARISH (reason). Signal: [STRONG_]BUY/SELL (X/3 categories). Entry at $N because [reason]. Risk: [key concern].'"
 }`;
 
 export interface TradingSignal {
@@ -108,9 +125,14 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
   validateSignal(signal);
 
   console.log('[OpenAI] Signal generated:', signal.signal);
+  console.log('[OpenAI] AI calculations - Entry:', signal.entry_price, 'SL:', signal.stop_loss, 'TP:', signal.take_profit);
+
   return signal;
 }
 
+/**
+ * Basic validation - checks types and ranges
+ */
 function validateSignal(signal: any): asserts signal is TradingSignal {
   const validSignals = ['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL'];
 
@@ -136,5 +158,40 @@ function validateSignal(signal: any): asserts signal is TradingSignal {
 
   if (!signal.reasoning) {
     throw new Error('Missing reasoning');
+  }
+
+  // Logical validation: Risk/Reward ratio
+  const isBuy = signal.signal === 'BUY' || signal.signal === 'STRONG_BUY';
+  const isSell = signal.signal === 'SELL' || signal.signal === 'STRONG_SELL';
+
+  if (isBuy) {
+    // For BUY: SL should be < Entry < TP
+    if (signal.stop_loss >= signal.entry_price) {
+      console.warn('[Validation] BUY signal has SL >= Entry. SL:', signal.stop_loss, 'Entry:', signal.entry_price);
+    }
+    if (signal.take_profit <= signal.entry_price) {
+      console.warn('[Validation] BUY signal has TP <= Entry. TP:', signal.take_profit, 'Entry:', signal.entry_price);
+    }
+  }
+
+  if (isSell) {
+    // For SELL: TP < Entry < SL
+    if (signal.stop_loss <= signal.entry_price) {
+      console.warn('[Validation] SELL signal has SL <= Entry. SL:', signal.stop_loss, 'Entry:', signal.entry_price);
+    }
+    if (signal.take_profit >= signal.entry_price) {
+      console.warn('[Validation] SELL signal has TP >= Entry. TP:', signal.take_profit, 'Entry:', signal.entry_price);
+    }
+  }
+
+  // Check minimum R:R ratio (should be at least 1.5:1)
+  if (isBuy || isSell) {
+    const risk = Math.abs(signal.entry_price - signal.stop_loss);
+    const reward = Math.abs(signal.take_profit - signal.entry_price);
+    const ratio = risk > 0 ? reward / risk : 0;
+
+    if (ratio < 1.5) {
+      console.warn(`[Validation] Poor R:R ratio: 1:${ratio.toFixed(2)} (should be >= 1:1.5)`);
+    }
   }
 }
