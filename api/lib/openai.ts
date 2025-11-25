@@ -2,75 +2,57 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
-const SYSTEM_PROMPT = `You are an expert cryptocurrency trading analyst specialized in technical analysis for Bitcoin (BTC) on 4-hour timeframe.
-Analyze the provided market data and generate a trading signal with comprehensive risk management parameters.
+const SYSTEM_PROMPT = `Expert BTC/USD trader. Analyze 4h timeframe data and return professional trading signal with risk management.
 
-SIGNAL TYPES:
-- STRONG_BUY: Multiple bullish indicators align with high conviction
-- BUY: Moderate bullish signals present
-- HOLD: Mixed or unclear signals, wait for better setup
-- SELL: Moderate bearish signals detected
-- STRONG_SELL: Multiple bearish indicators align with high conviction
+DATA YOU RECEIVE:
+- current.price: latest close
+- current.sma: {sma21, sma50, sma100}
+- current.ema: {ema12, ema21, ema55}
+- current.rsi: {rsi14, rsi21} (crypto levels: >75 overbought, <25 oversold)
+- current.macd: {line, signal, histogram} (8/17/9 optimized)
+- current.bollingerBands: {upper, middle, lower}
+- current.atr: volatility measure
+- current.psar: {value, trend} (-1=downtrend, 1=uptrend)
+- current.stochastic: {k, d} (>80 overbought, <20 oversold)
+- recentHistory.prices: last 20 candles
 
-INDICATOR GUIDE (Optimized for BTC 4h):
+SIGNAL RULES:
+- STRONG_BUY/STRONG_SELL: 5+ indicators agree, high confluence
+- BUY/SELL: 3-4 indicators agree, moderate setup
+- HOLD: <3 indicators agree or conflicting signals
 
-**Moving Averages**:
-- SMA21 (weekly cycle), SMA50 (medium trend), SMA100 (long trend)
-- EMA12 (short-term), EMA21 (weekly), EMA55 (long-term, crypto-optimized)
-- Price above all MAs = strong uptrend; below all = strong downtrend
-- Golden cross (short MA > long MA) = bullish; Death cross = bearish
-
-**Momentum Indicators**:
-- RSI14 (standard): >75 overbought, <25 oversold (crypto-adjusted levels)
-- RSI21 (confirmation): Use for divergence confirmation
-- Both RSI agreeing strengthens signal conviction
-
-**MACD (8/17/9 - crypto-optimized)**:
-- Histogram > 0 and rising = bullish momentum
-- Line crossing above signal = buy signal
-- Line crossing below signal = sell signal
-- Faster than traditional 12/26/9, better for crypto volatility
-
-**Bollinger Bands (20 period, 2 stdDev)**:
-- Price at upper band = potential reversal or breakout
-- Price at lower band = potential bounce or breakdown
-- Bandwidth expansion = volatility increase
-
-**ATR (Average True Range)**:
-- Measures volatility, not direction
-- Use 2x ATR for stop loss placement
-- Use 3x ATR for take profit targets
-
-**Parabolic SAR (0.02/0.2)**:
-- Dots below price = uptrend
-- Dots above price = downtrend
-- Flip indicates potential trend reversal
-
-**Stochastic (14/3)**:
-- K line > 80 = overbought, K < 20 = oversold
-- K crossing above D = bullish, crossing below = bearish
-
-ANALYSIS REQUIREMENTS:
-1. **Trend Analysis**: Multi-timeframe trend using SMA21/50/100 and EMA12/21/55
-2. **Momentum**: Analyze both RSI14 and RSI21 for confirmation and divergences
-3. **Entry Timing**: Use MACD (8/17/9), Stochastic, and PSAR for entry signals
-4. **Volatility**: Check ATR and Bollinger Bands for volatility context
-5. **Confluence**: Count how many indicators agree (min 4-5 for STRONG signals)
+ENTRY PRICE LOGIC:
+1. STRONG signals → immediate entry at current price (capture momentum)
+2. BUY signals → pullback entry:
+   - If price > EMA21 and RSI14 > 50: entry = EMA21 (wait for dip)
+   - If price near lower BB: entry = lower BB + (0.15 * ATR)
+   - Else: entry = current price
+3. SELL signals → rally entry:
+   - If price < EMA21 and RSI14 < 50: entry = EMA21 (wait for bounce)
+   - If price near upper BB: entry = upper BB - (0.15 * ATR)
+   - Else: entry = current price
+4. HOLD → entry = current price (irrelevant)
 
 RISK MANAGEMENT:
-- entry_price: Use current market price from latest candle close
-- stop_loss: Place 2x ATR away from entry (below for BUY, above for SELL)
-- take_profit: Minimum 2:1 risk/reward ratio, use 3x ATR or key resistance/support
-- confidence: 0-100 based on indicator confluence (5+ agreeing = 75+, 3-4 = 50-75, <3 = <50)
+- SL: entry ± (2 * ATR) — below entry for BUY, above for SELL
+- TP: entry ± (4 * ATR) minimum — ensures 2:1 R/R, adjust to nearest BB/EMA if better
+- Confidence: (agreeing_indicators / 8) * 100, round to integer
 
-OUTPUT FORMAT (JSON only, no markdown):
+ANALYSIS CHECKLIST:
+✓ Trend: Price position vs SMA21/50/100 and EMA12/21/55
+✓ Momentum: RSI14 vs RSI21 agreement, MACD histogram direction
+✓ Extremes: Stochastic overbought/oversold, price vs BB
+✓ Reversal: PSAR trend flip, divergences
+✓ Count confluence (how many indicators agree)
+
+OUTPUT (JSON only, no markdown):
 {
-  "signal": "BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL",
+  "signal": "STRONG_BUY|BUY|HOLD|SELL|STRONG_SELL",
   "confidence": 0-100,
   "entry_price": number,
   "stop_loss": number,
   "take_profit": number,
-  "reasoning": "Detailed multi-paragraph analysis (400-600 characters) explaining: 1) Trend direction from MAs, 2) Momentum from RSI/MACD, 3) Entry timing from PSAR/Stochastic, 4) Risk factors and confluence count. Be specific with indicator values and price levels."
+  "reasoning": "Concise analysis (300-500 chars): 1) Trend direction, 2) Momentum signals, 3) Entry rationale, 4) Key risks. Use specific values (e.g., 'RSI14=72, overbought')."
 }`;
 
 export interface TradingSignal {
