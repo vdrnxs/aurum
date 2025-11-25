@@ -1,30 +1,6 @@
 import { Card, Text, Metric, Grid, Badge } from '@tremor/react';
 import { SPACING, TYPOGRAPHY } from '../lib/styles';
-
-interface IndicatorData {
-  signal_id: number;
-  created_at: string;
-  price: number;
-  sma_21: number;
-  sma_50: number;
-  sma_100: number;
-  ema_12: number;
-  ema_21: number;
-  ema_55: number;
-  rsi_14: number;
-  rsi_21: number;
-  macd_line: number;
-  macd_signal: number;
-  macd_histogram: number;
-  bb_upper: number;
-  bb_middle: number;
-  bb_lower: number;
-  atr: number;
-  psar_value: number;
-  psar_trend: number;
-  stoch_k: number;
-  stoch_d: number;
-}
+import type { IndicatorData } from '../services/indicators';
 
 interface TechnicalIndicatorsKPIProps {
   indicators: IndicatorData | null;
@@ -73,7 +49,7 @@ export function TechnicalIndicatorsKPI({ indicators, currentPrice }: TechnicalIn
     return { label: 'Neutral', color: 'gray' as const };
   };
 
-  const price = currentPrice || indicators.price;
+  const price = currentPrice ?? indicators.price;
 
   return (
     <div className="space-y-6">

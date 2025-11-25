@@ -4,7 +4,7 @@ import { TradingSignalCard } from './components/TradingSignalCard';
 import { SignalsHistoryTable } from './components/SignalsHistoryTable';
 import { ToonViewer } from './components/ToonViewer';
 import { TechnicalIndicatorsKPI } from './components/TechnicalIndicatorsKPI';
-import { Card, Title, Text, Button } from '@tremor/react';
+import { Card, Title, Text, Button, TabGroup, TabList, Tab, TabPanels, TabPanel } from '@tremor/react';
 import type { TradingSignal } from './types/database';
 import { getLatestSignal, getSignalHistory } from './services/signals';
 import { getLatestIndicators, type IndicatorData } from './services/indicators';
@@ -16,6 +16,7 @@ function App() {
   const [indicators, setIndicators] = useState<IndicatorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   const fetchSignal = async () => {
     setLoading(true);
@@ -122,35 +123,42 @@ function App() {
           )}
         </div>
 
-        {/* Technical Indicators Section */}
-        {indicators && (
+        {/* Tabbed Section: Indicators & History */}
+        {(indicators || signalHistory.length > 0) && (
           <div className={LAYOUT.container}>
             <Card>
-              <div className={SPACING.mb.lg}>
-                <Title>Technical Indicators</Title>
-                <Text className={SPACING.mt.xs}>
-                  All technical indicators used for signal generation
-                </Text>
-              </div>
-              <TechnicalIndicatorsKPI
-                indicators={indicators}
-                currentPrice={signal.current_price ?? undefined}
-              />
-            </Card>
-          </div>
-        )}
-
-        {/* Signal History Section */}
-        {signalHistory.length > 0 && (
-          <div className={LAYOUT.container}>
-            <Card>
-              <div className={SPACING.mb.md}>
-                <Title>Signal History</Title>
-                <Text className={SPACING.mt.xs}>
-                  Last {signalHistory.length} trading signals for BTC 4h
-                </Text>
-              </div>
-              <SignalsHistoryTable signals={signalHistory} />
+              <TabGroup index={activeTab} onIndexChange={setActiveTab}>
+                <TabList className="mb-6">
+                  <Tab>Technical Indicators</Tab>
+                  <Tab>Signal History</Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel>
+                    {indicators ? (
+                      <TechnicalIndicatorsKPI
+                        indicators={indicators}
+                        currentPrice={signal.current_price ?? undefined}
+                      />
+                    ) : (
+                      <Text>No indicator data available</Text>
+                    )}
+                  </TabPanel>
+                  <TabPanel>
+                    {signalHistory.length > 0 ? (
+                      <>
+                        <div className={SPACING.mb.md}>
+                          <Text className={SPACING.mt.xs}>
+                            Last {signalHistory.length} trading signals for BTC 4h
+                          </Text>
+                        </div>
+                        <SignalsHistoryTable signals={signalHistory} />
+                      </>
+                    ) : (
+                      <Text>No signal history available</Text>
+                    )}
+                  </TabPanel>
+                </TabPanels>
+              </TabGroup>
             </Card>
           </div>
         )}

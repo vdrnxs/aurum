@@ -127,6 +127,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[analyze-signals] Step 5: Saving trading signal...');
     const latestCandle = candles[candles.length - 1];
 
+    if (!latestCandle) {
+      return res.status(500).json({ error: 'No candles available' });
+    }
+
     const { data: signalData, error: signalError } = await supabase
       .from('btc_trading_signals')
       .insert({
@@ -157,7 +161,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from('btc_indicators')
         .insert({
           signal_id: signalData.id,
-          created_at: new Date().toISOString(),
           price: indicators.price,
           sma_21: indicators.sma.sma21,
           sma_50: indicators.sma.sma50,
