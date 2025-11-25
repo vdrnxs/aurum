@@ -53,7 +53,7 @@ export function IndicatorsPage() {
     <AppLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className={SPACING.mb.xl}>
+        <div className={SPACING.mb.lg}>
           <Title>Technical Indicators Dashboard</Title>
           <Text className={SPACING.mt.sm}>
             Real-time technical indicators for BTC/USD on 4h timeframe

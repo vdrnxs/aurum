@@ -1,5 +1,5 @@
 import { Card, Text, Metric, Grid, Badge } from '@tremor/react';
-import { SPACING, TYPOGRAPHY, COLORS } from '../lib/styles';
+import { SPACING, TYPOGRAPHY } from '../lib/styles';
 
 interface IndicatorData {
   signal_id: number;
