@@ -415,6 +415,31 @@ vercel --prod
 - Keep AI prompts concise but clear
 - Always validate AI responses before saving
 
+## Git Workflow Rules
+
+**IMPORTANT**: Never execute `git add`, `git commit`, or `git push` commands unless the user explicitly requests it.
+
+- ❌ Do NOT automatically commit after making code changes
+- ❌ Do NOT automatically push after completing a task
+- ✅ Only use git commands when user explicitly says: "commit", "push", "git add", etc.
+- ✅ If suggesting to commit/push, ask the user first instead of doing it automatically
+- ⚠️ Exception: When user explicitly requests it as part of the task (e.g., "implement X and push to GitHub")
+
+**Commit Message Format**:
+- Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, etc.
+- Keep first line under 72 characters
+- **Never include "Co-Authored-By: Claude" footer** (breaks Vercel auto-deploy)
+- Be descriptive but concise
+
+**Example**:
+```
+feat: add technical indicators dashboard
+
+- Create TechnicalIndicatorsKPI component
+- Integrate with App.tsx
+- Add Supabase queries for indicators
+```
+
 ## Glossary
 
 | Term | Definition | Example in this project |
