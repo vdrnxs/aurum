@@ -134,7 +134,7 @@ function App() {
               </div>
               <TechnicalIndicatorsKPI
                 indicators={indicators}
-                currentPrice={signal.current_price}
+                currentPrice={signal.current_price ?? undefined}
               />
             </Card>
           </div>
