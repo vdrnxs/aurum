@@ -115,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Step 3: Prepare AI payload with TOON format
     console.log('[analyze-signals] Step 3: Preparing TOON payload...');
-    const toonData = prepareAIPayload(candles, symbol, interval, 20);
+    const { toonData, indicators } = prepareAIPayload(candles, symbol, interval, 20);
     console.log(`[analyze-signals] TOON data length: ${toonData.length} characters`);
 
     // Step 4: Call GPT-4o-mini for analysis
@@ -127,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[analyze-signals] Step 5: Saving trading signal...');
     const latestCandle = candles[candles.length - 1];
 
-    const { error: signalError } = await supabase
+    const { data: signalData, error: signalError } = await supabase
       .from('btc_trading_signals')
       .insert({
         symbol,
@@ -140,11 +140,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         stop_loss: aiSignal.stop_loss,
         take_profit: aiSignal.take_profit,
         ai_reasoning: aiSignal.reasoning,
-      });
+      })
+      .select('id')
+      .single();
 
     if (signalError) {
       console.error('[analyze-signals] Error saving signal:', signalError);
       return res.status(500).json({ error: `Failed to save signal: ${signalError.message}` });
+    }
+
+    // Step 6: Save technical indicators to database
+    console.log('[analyze-signals] Step 6: Saving technical indicators...');
+
+    if (signalData) {
+      const { error: indicatorsError } = await supabase
+        .from('btc_indicators')
+        .insert({
+          signal_id: signalData.id,
+          created_at: new Date().toISOString(),
+          price: indicators.price,
+          sma_21: indicators.sma.sma21,
+          sma_50: indicators.sma.sma50,
+          sma_100: indicators.sma.sma100,
+          ema_12: indicators.ema.ema12,
+          ema_21: indicators.ema.ema21,
+          ema_55: indicators.ema.ema55,
+          rsi_14: indicators.rsi.rsi14,
+          rsi_21: indicators.rsi.rsi21,
+          macd_line: indicators.macd.line,
+          macd_signal: indicators.macd.signal,
+          macd_histogram: indicators.macd.histogram,
+          bb_upper: indicators.bollingerBands.upper,
+          bb_middle: indicators.bollingerBands.middle,
+          bb_lower: indicators.bollingerBands.lower,
+          atr: indicators.atr,
+          psar_value: indicators.psar.value,
+          psar_trend: indicators.psar.trend,
+          stoch_k: indicators.stochastic.k,
+          stoch_d: indicators.stochastic.d,
+        });
+
+      if (indicatorsError) {
+        console.error('[analyze-signals] Error saving indicators:', indicatorsError);
+        // Don't fail the request - signal was already saved successfully
+      } else {
+        console.log('[analyze-signals] Technical indicators saved successfully');
+      }
     }
 
     const processingTime = Date.now() - startTime;

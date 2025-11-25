@@ -7,7 +7,7 @@ export function prepareAIPayload(
   symbol: string,
   interval: string,
   historyLimit: number = 20
-): string {
+): { toonData: string; indicators: ReturnType<typeof getLatestValues> } {
   const latest = getLatestValues(candles);
   const recentCandles = candles.slice(-historyLimit);
 
@@ -32,5 +32,8 @@ export function prepareAIPayload(
     },
   };
 
-  return encode(payload);
+  return {
+    toonData: encode(payload),
+    indicators: latest,
+  };
 }
