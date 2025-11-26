@@ -95,9 +95,11 @@ export function TradingSignalCard({ signal }: TradingSignalCardProps) {
         <>
           {/* Market Price Display for HOLD */}
           <div className={`${SPACING.mt.lg} ${COMPONENTS.infoBox} text-center border-2 border-gray-300 dark:border-gray-600`}>
-            <Text className="text-tremor-content-subtle text-sm uppercase tracking-wide">Current Market Price</Text>
-            <Metric className="text-5xl mt-2">{formatPrice(signal.entry_price)}</Metric>
-            <Text className={`${SPACING.mt.sm} text-tremor-content-subtle`}>No trade recommended</Text>
+            <Text className="text-tremor-content-subtle text-sm uppercase tracking-wide">Market Price</Text>
+            <Metric className="text-5xl mt-2">
+              {signal.current_price ? formatPrice(signal.current_price) : formatPrice(signal.entry_price)}
+            </Metric>
+            <Text className={`${SPACING.mt.sm} text-tremor-content-subtle`}>No clear trading opportunity</Text>
           </div>
 
         </>
