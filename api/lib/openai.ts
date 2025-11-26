@@ -13,10 +13,10 @@ Respond ONLY with valid JSON (no markdown, no extra text):
 {
   "signal": "BUY" | "SELL" | "HOLD" | "STRONG_BUY" | "STRONG_SELL",
   "confidence": 0-100,
-  "entry_price": number,
-  "stop_loss": number,
-  "take_profit": number,
-  "reasoning": "Write a friendly, easy-to-read explanation (2-3 sentences). Explain what you see in the market and why it makes sense to take this trade. Avoid technical jargon - write like you're explaining to a friend. No symbols, no formulas, no comparing numbers. Just clear insights about market direction and opportunity."
+  "entry_price": number (use 0 for HOLD signals),
+  "stop_loss": number (use 0 for HOLD signals),
+  "take_profit": number (use 0 for HOLD signals),
+  "reasoning": "Write a friendly, easy-to-read explanation (2-3 sentences). Explain what you see in the market and why it makes sense to take this trade (or wait if HOLD). Avoid technical jargon - write like you're explaining to a friend. No symbols, no formulas, no comparing numbers. Just clear insights about market direction and opportunity."
 }`;
 
 export interface TradingSignal {
@@ -108,15 +108,15 @@ function validateSignal(signal: any): asserts signal is TradingSignal {
     throw new Error(`Invalid confidence: ${signal.confidence}`);
   }
 
-  if (typeof signal.entry_price !== 'number' || signal.entry_price <= 0) {
+  if (typeof signal.entry_price !== 'number') {
     throw new Error(`Invalid entry_price: ${signal.entry_price}`);
   }
 
-  if (typeof signal.stop_loss !== 'number' || signal.stop_loss <= 0) {
+  if (typeof signal.stop_loss !== 'number') {
     throw new Error(`Invalid stop_loss: ${signal.stop_loss}`);
   }
 
-  if (typeof signal.take_profit !== 'number' || signal.take_profit <= 0) {
+  if (typeof signal.take_profit !== 'number') {
     throw new Error(`Invalid take_profit: ${signal.take_profit}`);
   }
 
@@ -127,6 +127,21 @@ function validateSignal(signal: any): asserts signal is TradingSignal {
   // Logical validation: Risk/Reward ratio
   const isBuy = signal.signal === 'BUY' || signal.signal === 'STRONG_BUY';
   const isSell = signal.signal === 'SELL' || signal.signal === 'STRONG_SELL';
+  const isHold = signal.signal === 'HOLD';
+
+  // For HOLD signals, prices can be 0 or any value (no trade)
+  if (!isHold) {
+    // For BUY/SELL signals, validate prices are positive
+    if (signal.entry_price <= 0) {
+      throw new Error(`Invalid entry_price for ${signal.signal}: ${signal.entry_price} (must be > 0)`);
+    }
+    if (signal.stop_loss <= 0) {
+      throw new Error(`Invalid stop_loss for ${signal.signal}: ${signal.stop_loss} (must be > 0)`);
+    }
+    if (signal.take_profit <= 0) {
+      throw new Error(`Invalid take_profit for ${signal.signal}: ${signal.take_profit} (must be > 0)`);
+    }
+  }
 
   if (isBuy) {
     // For BUY: SL should be < Entry < TP
