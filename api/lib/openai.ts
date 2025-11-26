@@ -2,82 +2,35 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
-const SYSTEM_PROMPT = `Expert BTC/USD trader. Analyze 4h timeframe data and return professional trading signal with risk management.
+const SYSTEM_PROMPT = `You are an expert BTC/USD trader analyzing 4h timeframe data.
 
-DATA YOU RECEIVE:
-- current.price: latest close
-- current.sma: {sma21, sma50, sma100}
-- current.ema: {ema12, ema21, ema55}
-- current.rsi: {rsi14, rsi21} (crypto levels: >75 overbought, <25 oversold)
-- current.macd: {line, signal, histogram} (8/17/9 optimized)
-- current.bollingerBands: {upper, middle, lower}
-- current.atr: volatility measure
-- current.psar: {value, trend} (-1=downtrend, 1=uptrend)
-- current.stochastic: {k, d} (>80 overbought, <20 oversold)
-- recentHistory.prices: last 20 candles
+You will receive market data in TOON format containing:
+- Last 100 OHLCV candles
+- Technical indicators: SMA (21/50/100), EMA (12/21/55), RSI (14/21), MACD, Bollinger Bands, ATR, Parabolic SAR, Stochastic
+- Recent price history (last 20 candles)
 
-SIGNAL RULES (Category-Based System):
+Your task:
+1. Analyze the complete market context (not just last values)
+2. Identify market regime (trending up/down, ranging, consolidation)
+3. Look for key patterns, divergences, support/resistance levels
+4. Determine if there's a high-probability trading opportunity
 
-Evaluate 3 categories independently, then combine:
-
-1. TREND (SMA/EMA):
-   - BULLISH: price > SMA21 AND SMA21 > SMA50 AND EMA12 > EMA21
-   - BEARISH: price < SMA21 AND SMA21 < SMA50 AND EMA12 < EMA21
-   - NEUTRAL: Mixed or choppy
-
-2. MOMENTUM (RSI/MACD):
-   - BULLISH: (RSI14 > 50 OR RSI21 > 50) AND MACD histogram > 0
-   - BEARISH: (RSI14 < 50 OR RSI21 < 50) AND MACD histogram < 0
-   - NEUTRAL: Conflicting or ranging (40 < RSI < 60)
-
-3. TIMING (PSAR/Stochastic/BB):
-   - BULLISH: PSAR trend = 1 OR (Stoch K < 30 turning up) OR price near lower BB
-   - BEARISH: PSAR trend = -1 OR (Stoch K > 70 turning down) OR price near upper BB
-   - NEUTRAL: No clear timing signal
-
-COMBINE CATEGORIES:
-- STRONG_BUY: Trend=BULLISH + Momentum=BULLISH + Timing=BULLISH (3/3)
-- BUY: Trend=BULLISH + (Momentum=BULLISH OR Timing=BULLISH) (2/3 with trend bullish)
-- HOLD: Trend=NEUTRAL OR only 1 category bullish OR conflicting
-- SELL: Trend=BEARISH + (Momentum=BEARISH OR Timing=BEARISH) (2/3 with trend bearish)
-- STRONG_SELL: Trend=BEARISH + Momentum=BEARISH + Timing=BEARISH (3/3)
-
-ENTRY PRICE LOGIC:
-1. STRONG signals → immediate entry at current price (capture momentum)
-2. BUY signals → pullback entry:
-   - If price > EMA21 and RSI14 > 50: entry = EMA21 (wait for dip)
-   - If price near lower BB: entry = lower BB + (0.15 * ATR)
-   - Else: entry = current price
-3. SELL signals → rally entry:
-   - If price < EMA21 and RSI14 < 50: entry = EMA21 (wait for bounce)
-   - If price near upper BB: entry = upper BB - (0.15 * ATR)
-   - Else: entry = current price
-4. HOLD → entry = current price, SL = current price, TP = current price (no trade)
-
-RISK MANAGEMENT:
-- BUY signals:
-  * SL: entry - (2 * ATR)
-  * TP: entry + (4 * ATR) minimum, adjust to nearest resistance (upper BB/EMA) if better
-- SELL signals:
-  * SL: entry + (2 * ATR)
-  * TP: entry - (4 * ATR) minimum, adjust to nearest support (lower BB/EMA) if better
-- HOLD signals:
-  * SL: current price (no stop needed)
-  * TP: current price (no target needed)
-- Confidence: Based on category agreement:
-  * 3/3 categories agree: 80-95%
-  * 2/3 categories agree: 60-75%
-  * 1/3 or conflicting: 30-50%
-
-OUTPUT (JSON only, no markdown):
+Respond with a JSON object (no markdown):
 {
-  "signal": "STRONG_BUY|BUY|HOLD|SELL|STRONG_SELL",
+  "signal": "BUY" | "SELL" | "HOLD" | "STRONG_BUY" | "STRONG_SELL",
   "confidence": 0-100,
   "entry_price": number,
   "stop_loss": number,
   "take_profit": number,
-  "reasoning": "Start with categories, then explain. Format: 'Trend: BULLISH (price=$X > SMA21=$Y, EMA12>EMA21). Momentum: BULLISH (RSI14=Z, MACD hist=+W). Timing: NEUTRAL/BULLISH/BEARISH (reason). Signal: [STRONG_]BUY/SELL (X/3 categories). Entry at $N because [reason]. Risk: [key concern].'"
-}`;
+  "reasoning": "2-3 clear sentences explaining WHY you chose this signal. Focus on key confluences and what makes this setup high-probability. Mention specific price levels and structure."
+}
+
+Guidelines:
+- Only signal high-confidence setups (avoid forcing trades)
+- Set SL/TP based on market structure (support/resistance, not arbitrary formulas)
+- Consider full context: trend direction, momentum strength, price action patterns
+- Use ATR as reference for volatility when setting stops
+- Reasoning should be concise but insightful - explain the "why" behind your decision`;
 
 export interface TradingSignal {
   signal: 'BUY' | 'SELL' | 'HOLD' | 'STRONG_BUY' | 'STRONG_SELL';
