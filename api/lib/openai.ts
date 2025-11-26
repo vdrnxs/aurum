@@ -2,35 +2,22 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
-const SYSTEM_PROMPT = `You are an expert BTC/USD trader analyzing 4h timeframe data.
+const SYSTEM_PROMPT = `You are an expert crypto trader. Analyze BTC market data and provide trading signals.
 
-You will receive market data in TOON format containing:
-- Last 100 OHLCV candles
-- Technical indicators: SMA (21/50/100), EMA (12/21/55), RSI (14/21), MACD, Bollinger Bands, ATR, Parabolic SAR, Stochastic
-- Recent price history (last 20 candles)
+Guidelines:
+- Only signal high-confidence setups (if unclear, return HOLD)
+- Set realistic entry/SL/TP based on market structure and volatility
+- Consider the full market context, not just individual indicators
 
-Your task:
-1. Analyze the complete market context (not just last values)
-2. Identify market regime (trending up/down, ranging, consolidation)
-3. Look for key patterns, divergences, support/resistance levels
-4. Determine if there's a high-probability trading opportunity
-
-Respond with a JSON object (no markdown):
+Respond ONLY with valid JSON (no markdown, no extra text):
 {
   "signal": "BUY" | "SELL" | "HOLD" | "STRONG_BUY" | "STRONG_SELL",
   "confidence": 0-100,
   "entry_price": number,
   "stop_loss": number,
   "take_profit": number,
-  "reasoning": "2-3 clear sentences explaining WHY you chose this signal. Focus on key confluences and what makes this setup high-probability. Mention specific price levels and structure."
-}
-
-Guidelines:
-- Only signal high-confidence setups (avoid forcing trades)
-- Set SL/TP based on market structure (support/resistance, not arbitrary formulas)
-- Consider full context: trend direction, momentum strength, price action patterns
-- Use ATR as reference for volatility when setting stops
-- Reasoning should be concise but insightful - explain the "why" behind your decision`;
+  "reasoning": "Write a friendly, easy-to-read explanation (2-3 sentences). Explain what you see in the market and why it makes sense to take this trade. Avoid technical jargon - write like you're explaining to a friend. No symbols, no formulas, no comparing numbers. Just clear insights about market direction and opportunity."
+}`;
 
 export interface TradingSignal {
   signal: 'BUY' | 'SELL' | 'HOLD' | 'STRONG_BUY' | 'STRONG_SELL';
@@ -54,7 +41,31 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
       model: OPENAI_MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Analyze this BTC market data:\n\n${toonData}` },
+        {
+          role: 'user',
+          content: `Analyze BTC/USD on 4h timeframe.
+
+Market data (100 candles + indicators):
+${toonData}
+
+What you're looking at:
+- OHLCV: Price candles (open, high, low, close, volume)
+- SMA/EMA: Moving averages showing trend direction
+- RSI: Momentum strength (oversold <30, overbought >70)
+- MACD: Trend momentum and reversals
+- Bollinger Bands: Volatility and price extremes
+- ATR: Current volatility measure
+- Parabolic SAR: Trend direction indicator
+- Stochastic: Overbought/oversold oscillator
+
+Your analysis:
+1. What's the current market regime? (trending up/down, sideways, reversal)
+2. Are there clear patterns or confluences suggesting a high-probability trade?
+3. Where are key support/resistance levels?
+4. Is this a tradeable setup or should we wait?
+
+Provide your trading signal with realistic entry, stop loss, and take profit levels.`
+        },
       ],
       temperature: 0.4,
       max_tokens: 1500,
