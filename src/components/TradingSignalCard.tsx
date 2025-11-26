@@ -100,13 +100,6 @@ export function TradingSignalCard({ signal }: TradingSignalCardProps) {
             <Text className={`${SPACING.mt.sm} text-tremor-content-subtle`}>No trade recommended</Text>
           </div>
 
-          {/* HOLD Explanation */}
-          <div className={`${SPACING.mt.lg} ${COMPONENTS.infoBox} bg-gray-50 dark:bg-gray-800`}>
-            <Text className="font-semibold text-gray-700 dark:text-gray-300">Why HOLD?</Text>
-            <Text className={`${SPACING.mt.xs} text-tremor-content-subtle text-sm`}>
-              Less than 3 indicators agree, or conflicting signals detected. Wait for better setup.
-            </Text>
-          </div>
         </>
       ) : (
         <>
