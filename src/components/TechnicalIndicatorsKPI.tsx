@@ -53,12 +53,6 @@ export function TechnicalIndicatorsKPI({ indicators, currentPrice }: TechnicalIn
 
   return (
     <div className="space-y-6">
-      {/* Current Price */}
-      <Card className={SPACING.p.lg}>
-        <Text className={TYPOGRAPHY.sm}>Current Price</Text>
-        <Metric className="text-4xl mt-1">{formatPrice(price)}</Metric>
-      </Card>
-
       {/* Simple Moving Averages (SMA) */}
       <div>
         <Text className={`${TYPOGRAPHY.emphasis} mb-3`}>Simple Moving Averages (SMA)</Text>
