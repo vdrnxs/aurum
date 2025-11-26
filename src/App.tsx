@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { AppLayout } from './layouts/AppLayout';
 import { TradingSignalCard } from './components/TradingSignalCard';
 import { SignalsHistoryTable } from './components/SignalsHistoryTable';
-import { ToonViewer } from './components/ToonViewer';
 import { TechnicalIndicatorsKPI } from './components/TechnicalIndicatorsKPI';
 import { Card, Title, Text, Button, TabGroup, TabList, Tab, TabPanels, TabPanel } from '@tremor/react';
 import type { TradingSignal } from './types/database';
@@ -114,13 +113,6 @@ function App() {
         {/* Latest Signal Section */}
         <div className={LAYOUT.contentContainer}>
           <TradingSignalCard signal={signal} />
-
-          {signal.toon_data && signal.indicators_data && (
-            <ToonViewer
-              toonData={signal.toon_data}
-              jsonData={signal.indicators_data}
-            />
-          )}
         </div>
 
         {/* Tabbed Section: Indicators & History */}
