@@ -3,6 +3,7 @@ import { AppLayout } from './layouts/AppLayout';
 import { TradingSignalCard } from './components/TradingSignalCard';
 import { SignalsHistoryTable } from './components/SignalsHistoryTable';
 import { TechnicalIndicatorsKPI } from './components/TechnicalIndicatorsKPI';
+import { TradingViewChart } from './components/TradingViewChart';
 import { Card, Title, Text, Button, TabGroup, TabList, Tab, TabPanels, TabPanel } from '@tremor/react';
 import type { TradingSignal } from './types/database';
 import { getLatestSignal, getSignalHistory } from './services/signals';
@@ -110,9 +111,24 @@ function App() {
       subtitle="BTC Trading Signal Generator (Every 4 Hours)"
     >
       <div className={SPACING.section}>
-        {/* Latest Signal Section */}
-        <div className={LAYOUT.contentContainer}>
-          <TradingSignalCard signal={signal} />
+        {/* Two-Column Layout: Signal Card (Left) + TradingView Chart (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+          <div className="lg:col-span-2">
+            <TradingSignalCard signal={signal} />
+          </div>
+
+          <div className="lg:col-span-3">
+            <Card>
+              <Title className="mb-4">BTC/USD Chart (4h)</Title>
+              <div className="w-full" style={{ height: '600px' }}>
+                <TradingViewChart
+                  symbol="BINANCE:BTCUSDT"
+                  interval="240"
+                  theme="dark"
+                />
+              </div>
+            </Card>
+          </div>
         </div>
 
         {/* Tabbed Section: Indicators & History */}
