@@ -27,7 +27,7 @@ function getSignalColor(signal: SignalType): string {
 }
 
 function formatPrice(price: number | null): string {
-  if (price === null) return 'N/A';
+  if (price === null || price === 0) return '—';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
