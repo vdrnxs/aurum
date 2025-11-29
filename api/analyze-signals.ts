@@ -113,10 +113,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[analyze-signals] Saved ${candles.length} candles to Supabase`);
     }
 
-    // Step 3: Prepare AI payload with TOON format
+    // Step 3: Prepare AI payload with TOON format (send all 100 candles for full context)
     console.log('[analyze-signals] Step 3: Preparing TOON payload...');
-    const { toonData, indicators } = prepareAIPayload(candles, symbol, interval, 20);
-    console.log(`[analyze-signals] TOON data length: ${toonData.length} characters`);
+    const { toonData, indicators } = prepareAIPayload(candles, symbol, interval, 100);
+    console.log(`[analyze-signals] TOON data length: ${toonData.length} characters, candles sent: 100`);
 
     // Step 4: Call GPT-4o-mini for analysis
     console.log('[analyze-signals] Step 4: Calling GPT-4o-mini...');
@@ -156,40 +156,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Step 6: Save technical indicators to database
     console.log('[analyze-signals] Step 6: Saving technical indicators...');
 
-    if (signalData) {
-      const { error: indicatorsError } = await supabase
-        .from('btc_indicators')
-        .insert({
-          signal_id: signalData.id,
-          price: indicators.price,
-          sma_21: indicators.sma.sma21,
-          sma_50: indicators.sma.sma50,
-          sma_100: indicators.sma.sma100,
-          ema_12: indicators.ema.ema12,
-          ema_21: indicators.ema.ema21,
-          ema_55: indicators.ema.ema55,
-          rsi_14: indicators.rsi.rsi14,
-          rsi_21: indicators.rsi.rsi21,
-          macd_line: indicators.macd.line,
-          macd_signal: indicators.macd.signal,
-          macd_histogram: indicators.macd.histogram,
-          bb_upper: indicators.bollingerBands.upper,
-          bb_middle: indicators.bollingerBands.middle,
-          bb_lower: indicators.bollingerBands.lower,
-          atr: indicators.atr,
-          psar_value: indicators.psar.value,
-          psar_trend: indicators.psar.trend,
-          stoch_k: indicators.stochastic.k,
-          stoch_d: indicators.stochastic.d,
-        });
-
-      if (indicatorsError) {
-        console.error('[analyze-signals] Error saving indicators:', indicatorsError);
-        // Don't fail the request - signal was already saved successfully
-      } else {
-        console.log('[analyze-signals] Technical indicators saved successfully');
-      }
+    if (!signalData) {
+      return res.status(500).json({ error: 'Signal was saved but no data returned' });
     }
+
+    const { error: indicatorsError } = await supabase
+      .from('btc_indicators')
+      .insert({
+        signal_id: signalData.id,
+        price: indicators.price,
+        sma_21: indicators.sma.sma21,
+        sma_50: indicators.sma.sma50,
+        sma_100: indicators.sma.sma100,
+        ema_12: indicators.ema.ema12,
+        ema_21: indicators.ema.ema21,
+        ema_55: indicators.ema.ema55,
+        rsi_14: indicators.rsi.rsi14,
+        rsi_21: indicators.rsi.rsi21,
+        macd_line: indicators.macd.line,
+        macd_signal: indicators.macd.signal,
+        macd_histogram: indicators.macd.histogram,
+        bb_upper: indicators.bollingerBands.upper,
+        bb_middle: indicators.bollingerBands.middle,
+        bb_lower: indicators.bollingerBands.lower,
+        atr: indicators.atr,
+        psar_value: indicators.psar.value,
+        psar_trend: indicators.psar.trend,
+        stoch_k: indicators.stochastic.k,
+        stoch_d: indicators.stochastic.d,
+      });
+
+    if (indicatorsError) {
+      console.error('[analyze-signals] CRITICAL: Error saving indicators:', indicatorsError);
+
+      // Rollback: Delete the signal we just created (orphan without indicators)
+      console.log('[analyze-signals] Rolling back signal due to indicators error...');
+      await supabase
+        .from('btc_trading_signals')
+        .delete()
+        .eq('id', signalData.id);
+
+      return res.status(500).json({
+        error: `Failed to save indicators: ${indicatorsError.message}. Signal was rolled back.`
+      });
+    }
+
+    console.log('[analyze-signals] Technical indicators saved successfully');
 
     const processingTime = Date.now() - startTime;
 

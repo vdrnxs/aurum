@@ -8,7 +8,6 @@ Componente React que muestra todos los indicadores técnicos calculados en forma
 
 - `src/components/TechnicalIndicatorsKPI.tsx` - Componente principal
 - `src/services/indicators.ts` - Funciones para obtener indicadores de Supabase
-- `src/pages/IndicatorsPage.tsx` - Página de ejemplo (opcional)
 
 ## Características
 
@@ -68,26 +67,9 @@ useEffect(() => {
 />
 ```
 
-### Opción 2: Usar como página separada
+### Opción 2: Modal o Tab
 
-Si decides agregar routing (React Router), puedes usar `IndicatorsPage.tsx` directamente:
-
-```tsx
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import App from './App';
-import { IndicatorsPage } from './pages/IndicatorsPage';
-
-<BrowserRouter>
-  <Routes>
-    <Route path="/" element={<App />} />
-    <Route path="/indicators" element={<IndicatorsPage />} />
-  </Routes>
-</BrowserRouter>
-```
-
-### Opción 3: Modal o Tab
-
-Puedes mostrar los indicadores en un tab o modal dentro de la página principal.
+Puedes mostrar los indicadores en un tab o modal dentro de la página principal (actualmente implementado con tabs en App.tsx).
 
 ## Datos Necesarios
 
@@ -150,11 +132,4 @@ Usa las mismas dependencias del proyecto:
 
 ✅ Componente completamente funcional
 ✅ Integración con Supabase lista
-✅ Página de ejemplo incluida
-⚠️ Pendiente: Integración en App.tsx (decisión del usuario)
-
-## Próximos Pasos
-
-1. Decidir dónde mostrar los indicadores (misma página, página separada, modal, etc.)
-2. Agregar la integración elegida al App.tsx
-3. Probar con datos reales después de la próxima ejecución del cron
+✅ Integrado en App.tsx con sistema de tabs

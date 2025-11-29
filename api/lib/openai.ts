@@ -2,22 +2,34 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
-const SYSTEM_PROMPT = `You are an expert crypto trader. Analyze BTC market data and provide trading signals.
+const SYSTEM_PROMPT = `You are a selective swing trader specializing in BTC 4h charts. You only take 1 high-quality trade per day.
 
-Guidelines:
-- Only signal high-confidence setups (if unclear, return HOLD)
-- Set realistic entry/SL/TP based on market structure and volatility
-- Consider the full market context, not just individual indicators
+Data you receive:
+- 100 OHLCV candles (open, high, low, close, volume)
+- Technical indicators: SMA, EMA, RSI, MACD, Bollinger Bands, ATR, Parabolic SAR, Stochastic
 
-Respond ONLY with valid JSON (no markdown, no extra text):
-{
-  "signal": "BUY" | "SELL" | "HOLD" | "STRONG_BUY" | "STRONG_SELL",
-  "confidence": 0-100,
-  "entry_price": number (use 0 for HOLD signals),
-  "stop_loss": number (use 0 for HOLD signals),
-  "take_profit": number (use 0 for HOLD signals),
-  "reasoning": "Write a friendly, easy-to-read explanation (2-3 sentences). Explain what you see in the market and why it makes sense to take this trade (or wait if HOLD). Avoid technical jargon - write like you're explaining to a friend. No symbols, no formulas, no comparing numbers. Just clear insights about market direction and opportunity."
-}`;
+Analysis framework (apply in this order):
+1. Trend context: Analyze last 50+ candles. Bullish, bearish, or ranging?
+2. Price action: Identify swing highs/lows. Breaking structure or respecting levels?
+3. Volume confirmation: Strong moves need volume support. Low volume = weak signal.
+4. Indicator confluence: RSI, MACD, MAs must align with trend.
+5. Risk zone: Where is setup invalidated? That's your stop loss.
+
+Entry criteria (ALL must be met):
+- Clear established trend with momentum
+- Pullback to key support/resistance (never chase breakouts)
+- Volume confirms the direction
+- Multiple indicators agree (confluence)
+- Can achieve MINIMUM 3:1 reward-to-risk ratio
+
+Exit rules:
+- Stop loss: Below structure that invalidates setup
+- Take profit: Realistic target using swing distances and ATR
+
+If ANY criterion fails, return HOLD. Quality over quantity wins.
+
+Return JSON:
+{"signal":"BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL","confidence":0-100,"entry_price":number,"stop_loss":number,"take_profit":number,"reasoning":"concise 2-3 sentence summary of key factors"}`;
 
 export interface TradingSignal {
   signal: 'BUY' | 'SELL' | 'HOLD' | 'STRONG_BUY' | 'STRONG_SELL';
@@ -43,32 +55,15 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
         { role: 'system', content: SYSTEM_PROMPT },
         {
           role: 'user',
-          content: `Analyze BTC/USD on 4h timeframe.
+          content: `Market data:
 
-Market data (100 candles + indicators):
 ${toonData}
 
-What you're looking at:
-- OHLCV: Price candles (open, high, low, close, volume)
-- SMA/EMA: Moving averages showing trend direction
-- RSI: Momentum strength (oversold <30, overbought >70)
-- MACD: Trend momentum and reversals
-- Bollinger Bands: Volatility and price extremes
-- ATR: Current volatility measure
-- Parabolic SAR: Trend direction indicator
-- Stochastic: Overbought/oversold oscillator
-
-Your analysis:
-1. What's the current market regime? (trending up/down, sideways, reversal)
-2. Are there clear patterns or confluences suggesting a high-probability trade?
-3. Where are key support/resistance levels?
-4. Is this a tradeable setup or should we wait?
-
-Provide your trading signal with realistic entry, stop loss, and take profit levels.`
+Apply your analysis framework and provide your signal.`
         },
       ],
-      temperature: 0.4,
-      max_tokens: 1500,
+      temperature: 0.9,
+      max_tokens: 500,
       response_format: { type: 'json_object' },
     }),
   });
@@ -95,82 +90,79 @@ Provide your trading signal with realistic entry, stop loss, and take profit lev
 }
 
 /**
- * Basic validation - checks types and ranges
+ * Validates trading signal structure and logic
  */
 function validateSignal(signal: any): asserts signal is TradingSignal {
   const validSignals = ['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL'];
 
+  // 1. Validate basic fields
   if (!validSignals.includes(signal.signal)) {
-    throw new Error(`Invalid signal: ${signal.signal}`);
+    throw new Error(`Invalid signal type: ${signal.signal}`);
   }
 
   if (typeof signal.confidence !== 'number' || signal.confidence < 0 || signal.confidence > 100) {
-    throw new Error(`Invalid confidence: ${signal.confidence}`);
+    throw new Error(`Invalid confidence: ${signal.confidence} (must be 0-100)`);
   }
 
-  if (typeof signal.entry_price !== 'number') {
-    throw new Error(`Invalid entry_price: ${signal.entry_price}`);
+  if (!signal.reasoning || signal.reasoning.length < 10) {
+    throw new Error('Reasoning is missing or too short');
   }
 
-  if (typeof signal.stop_loss !== 'number') {
-    throw new Error(`Invalid stop_loss: ${signal.stop_loss}`);
-  }
-
-  if (typeof signal.take_profit !== 'number') {
-    throw new Error(`Invalid take_profit: ${signal.take_profit}`);
-  }
-
-  if (!signal.reasoning) {
-    throw new Error('Missing reasoning');
-  }
-
-  // Logical validation: Risk/Reward ratio
   const isBuy = signal.signal === 'BUY' || signal.signal === 'STRONG_BUY';
   const isSell = signal.signal === 'SELL' || signal.signal === 'STRONG_SELL';
   const isHold = signal.signal === 'HOLD';
 
-  // For HOLD signals, prices can be 0 or any value (no trade)
-  if (!isHold) {
-    // For BUY/SELL signals, validate prices are positive
-    if (signal.entry_price <= 0) {
-      throw new Error(`Invalid entry_price for ${signal.signal}: ${signal.entry_price} (must be > 0)`);
-    }
-    if (signal.stop_loss <= 0) {
-      throw new Error(`Invalid stop_loss for ${signal.signal}: ${signal.stop_loss} (must be > 0)`);
-    }
-    if (signal.take_profit <= 0) {
-      throw new Error(`Invalid take_profit for ${signal.signal}: ${signal.take_profit} (must be > 0)`);
-    }
+  // 2. Handle HOLD signals (set defaults if missing)
+  if (isHold) {
+    signal.entry_price = signal.entry_price ?? 0;
+    signal.stop_loss = signal.stop_loss ?? 0;
+    signal.take_profit = signal.take_profit ?? 0;
+    return; // No further validation needed for HOLD
   }
 
-  if (isBuy) {
-    // For BUY: SL should be < Entry < TP
-    if (signal.stop_loss >= signal.entry_price) {
-      console.warn('[Validation] BUY signal has SL >= Entry. SL:', signal.stop_loss, 'Entry:', signal.entry_price);
-    }
-    if (signal.take_profit <= signal.entry_price) {
-      console.warn('[Validation] BUY signal has TP <= Entry. TP:', signal.take_profit, 'Entry:', signal.entry_price);
-    }
+  // 3. Validate trade signals (BUY/SELL) have all price fields
+  if (typeof signal.entry_price !== 'number' || signal.entry_price <= 0) {
+    throw new Error(`Invalid entry_price: ${signal.entry_price}`);
   }
 
-  if (isSell) {
-    // For SELL: TP < Entry < SL
-    if (signal.stop_loss <= signal.entry_price) {
-      console.warn('[Validation] SELL signal has SL <= Entry. SL:', signal.stop_loss, 'Entry:', signal.entry_price);
-    }
-    if (signal.take_profit >= signal.entry_price) {
-      console.warn('[Validation] SELL signal has TP >= Entry. TP:', signal.take_profit, 'Entry:', signal.entry_price);
-    }
+  if (typeof signal.stop_loss !== 'number' || signal.stop_loss <= 0) {
+    throw new Error(`Invalid stop_loss: ${signal.stop_loss}`);
   }
 
-  // Check minimum R:R ratio (should be at least 1.5:1)
-  if (isBuy || isSell) {
-    const risk = Math.abs(signal.entry_price - signal.stop_loss);
-    const reward = Math.abs(signal.take_profit - signal.entry_price);
-    const ratio = risk > 0 ? reward / risk : 0;
+  if (typeof signal.take_profit !== 'number' || signal.take_profit <= 0) {
+    throw new Error(`Invalid take_profit: ${signal.take_profit}`);
+  }
 
-    if (ratio < 1.5) {
-      console.warn(`[Validation] Poor R:R ratio: 1:${ratio.toFixed(2)} (should be >= 1:1.5)`);
-    }
+  // 4. Validate price order logic
+  if (isBuy && signal.stop_loss >= signal.entry_price) {
+    throw new Error(`BUY signal: stop_loss (${signal.stop_loss}) must be below entry (${signal.entry_price})`);
+  }
+
+  if (isBuy && signal.take_profit <= signal.entry_price) {
+    throw new Error(`BUY signal: take_profit (${signal.take_profit}) must be above entry (${signal.entry_price})`);
+  }
+
+  if (isSell && signal.stop_loss <= signal.entry_price) {
+    throw new Error(`SELL signal: stop_loss (${signal.stop_loss}) must be above entry (${signal.entry_price})`);
+  }
+
+  if (isSell && signal.take_profit >= signal.entry_price) {
+    throw new Error(`SELL signal: take_profit (${signal.take_profit}) must be below entry (${signal.entry_price})`);
+  }
+
+  // 5. Validate R:R ratio (minimum 3:1 for swing trading)
+  const risk = Math.abs(signal.entry_price - signal.stop_loss);
+  const reward = Math.abs(signal.take_profit - signal.entry_price);
+  const ratio = risk > 0 ? reward / risk : 0;
+
+  if (ratio < 3.0) {
+    console.warn(`[Warning] R:R ratio is ${ratio.toFixed(2)}:1 (target: 3:1). Signal may not be optimal.`);
+  }
+
+  // 6. Log round numbers warning (informational only)
+  const isRoundNumber = (price: number) => price % 1000 === 0 || price % 5000 === 0;
+
+  if (isRoundNumber(signal.stop_loss) || isRoundNumber(signal.take_profit)) {
+    console.warn(`[Warning] Psychological levels detected. SL: ${signal.stop_loss}, TP: ${signal.take_profit}`);
   }
 }
