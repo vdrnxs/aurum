@@ -23,9 +23,7 @@ const TradingSignalSchema = z.object({
   reasoning: z.string().min(10, 'Reasoning must be at least 10 characters'),
 });
 
-const SYSTEM_PROMPT = `You are an expert trader specializing in BTCUSD.
-
-{"signal":"BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL","confidence":0-100,"entry_price":number,"stop_loss":number,"take_profit":number,"reasoning":"concise 2-3 sentence summary of key factors"}`;
+const SYSTEM_PROMPT = `Eres un trader especializado en criptomonedas. Tu tarea es analizar el mercado de BTCUSD.`;
 
 export interface TradingSignal {
   signal: 'BUY' | 'SELL' | 'HOLD' | 'STRONG_BUY' | 'STRONG_SELL';
@@ -55,23 +53,13 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
 
 ${toonData}
 
-Analysis framework (apply in this order):
-1. Trend context: Analyze last 50+ candles. Bullish, bearish, or ranging?
-2. Price action: Identify swing highs/lows. Breaking structure or respecting levels?
-3. Volume confirmation: Strong moves need volume support. Low volume = weak signal.
+Con los indicadores que te he proporcionado detrmina la dirección del mercado.
+Determina el criterio de entrada en un punto clave.
+Tus reglas de salida son para tp atr x3 y sl atr x1.5.
 
-Entry criteria (ALL must be met):
-- Clear established trend with momentum
-- Volume confirms the direction
-- Multiple indicators agree (confluence)
-- Can achieve MINIMUM 3:1 reward-to-risk ratio
-
-Exit rules:
-- SL and TP: Realistic target using swing distances and ATR
-
-If ANY criterion fails, return HOLD. Quality over quantity wins.
-
-Apply your analysis framework and provide your signal.`
+Ejemplo de salida:
+{"signal":"BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL","confidence":0-100,"entry_price":number,"stop_loss":number,"take_profit":number,"reasoning":"Resumen breve y claro en pocas frases de los factores clave of key factors"}
+`
         },
       ],
       temperature: AI_CONFIG.TEMPERATURE,
