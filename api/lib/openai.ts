@@ -14,43 +14,17 @@ if (!OPENAI_API_KEY) {
 }
 
 // Zod schema for runtime validation of AI responses
-// Note: entry_price, stop_loss, take_profit can be null for HOLD signals
 const TradingSignalSchema = z.object({
   signal: z.enum(['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL']),
   confidence: z.number().min(0).max(100),
-  entry_price: z.number().nullable(),
-  stop_loss: z.number().nullable(),
-  take_profit: z.number().nullable(),
+  entry_price: z.number(),
+  stop_loss: z.number(),
+  take_profit: z.number(),
   reasoning: z.string().min(10, 'Reasoning must be at least 10 characters'),
 });
 
-const SYSTEM_PROMPT = `You are a selective swing trader specializing in BTC 4h charts. You only take 1 high-quality trade per day.
+const SYSTEM_PROMPT = `You are an expert trader specializing in BTCUSD.
 
-Data you receive:
-- 100 OHLCV candles (open, high, low, close, volume)
-- Technical indicators: SMA, EMA, RSI, MACD, Bollinger Bands, ATR, Parabolic SAR, Stochastic
-
-Analysis framework (apply in this order):
-1. Trend context: Analyze last 50+ candles. Bullish, bearish, or ranging?
-2. Price action: Identify swing highs/lows. Breaking structure or respecting levels?
-3. Volume confirmation: Strong moves need volume support. Low volume = weak signal.
-4. Indicator confluence: RSI, MACD, MAs must align with trend.
-5. Risk zone: Where is setup invalidated? That's your stop loss.
-
-Entry criteria (ALL must be met):
-- Clear established trend with momentum
-- Pullback to key support/resistance (never chase breakouts)
-- Volume confirms the direction
-- Multiple indicators agree (confluence)
-- Can achieve MINIMUM 3:1 reward-to-risk ratio
-
-Exit rules:
-- Stop loss: Below structure that invalidates setup
-- Take profit: Realistic target using swing distances and ATR
-
-If ANY criterion fails, return HOLD. Quality over quantity wins.
-
-Return JSON:
 {"signal":"BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL","confidence":0-100,"entry_price":number,"stop_loss":number,"take_profit":number,"reasoning":"concise 2-3 sentence summary of key factors"}`;
 
 export interface TradingSignal {
@@ -80,6 +54,22 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
           content: `Market data:
 
 ${toonData}
+
+Analysis framework (apply in this order):
+1. Trend context: Analyze last 50+ candles. Bullish, bearish, or ranging?
+2. Price action: Identify swing highs/lows. Breaking structure or respecting levels?
+3. Volume confirmation: Strong moves need volume support. Low volume = weak signal.
+
+Entry criteria (ALL must be met):
+- Clear established trend with momentum
+- Volume confirms the direction
+- Multiple indicators agree (confluence)
+- Can achieve MINIMUM 3:1 reward-to-risk ratio
+
+Exit rules:
+- SL and TP: Realistic target using swing distances and ATR
+
+If ANY criterion fails, return HOLD. Quality over quantity wins.
 
 Apply your analysis framework and provide your signal.`
         },
@@ -172,11 +162,7 @@ function validateSignalLogic(signal: TradingSignal): void {
   const ratio = risk > 0 ? reward / risk : 0;
 
   if (ratio < AI_CONFIG.MIN_RR_RATIO) {
-    log.warn('R:R ratio below target', {
-      ratio: ratio.toFixed(2),
-      target: AI_CONFIG.MIN_RR_RATIO,
-      message: 'Signal may not be optimal',
-    });
+    console.warn(`[Warning] R:R ratio is ${ratio.toFixed(2)}:1 (target: ${AI_CONFIG.MIN_RR_RATIO}:1). Signal may not be optimal.`);
   }
 
   // Log round numbers warning (informational only)
@@ -184,9 +170,6 @@ function validateSignalLogic(signal: TradingSignal): void {
     PRICE_VALIDATION.PSYCHOLOGICAL_LEVELS.some(level => price % level === 0);
 
   if (isRoundNumber(signal.stop_loss) || isRoundNumber(signal.take_profit)) {
-    log.warn('Psychological price levels detected', {
-      stopLoss: signal.stop_loss,
-      takeProfit: signal.take_profit,
-    });
+    console.warn(`[Warning] Psychological levels detected. SL: ${signal.stop_loss}, TP: ${signal.take_profit}`);
   }
 }
