@@ -14,12 +14,13 @@ if (!OPENAI_API_KEY) {
 }
 
 // Zod schema for runtime validation of AI responses
+// Note: entry_price, stop_loss, take_profit can be null for HOLD signals
 const TradingSignalSchema = z.object({
   signal: z.enum(['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL']),
   confidence: z.number().min(0).max(100),
-  entry_price: z.number(),
-  stop_loss: z.number(),
-  take_profit: z.number(),
+  entry_price: z.number().nullable(),
+  stop_loss: z.number().nullable(),
+  take_profit: z.number().nullable(),
   reasoning: z.string().min(10, 'Reasoning must be at least 10 characters'),
 });
 
