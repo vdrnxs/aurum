@@ -1,8 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 import { fetchCandles } from './lib/hyperliquid.js';
 import { prepareAIPayload } from './lib/toon.js';
 import { analyzeTradingSignal } from './lib/openai.js';
+import { SUPPORTED_INTERVALS, API_LIMITS } from './lib/constants.js';
+import { createLogger } from './lib/logger.js';
+
+const log = createLogger('analyze-signals');
 
 /**
  * API Endpoint: /api/analyze-signals
@@ -19,11 +24,18 @@ import { analyzeTradingSignal } from './lib/openai.js';
  * 7. Save to btc_trading_signals table
  */
 
-interface AnalyzeRequest {
-  symbol?: string;
-  interval?: string;
-  limit?: number;
-}
+// Zod schema for runtime validation of API request
+const AnalyzeRequestSchema = z.object({
+  symbol: z.enum(['BTC']).default('BTC'),
+  interval: z.enum(SUPPORTED_INTERVALS).default('4h'),
+  limit: z.number()
+    .int('Limit must be an integer')
+    .min(API_LIMITS.MIN_CANDLES, `Limit must be at least ${API_LIMITS.MIN_CANDLES}`)
+    .max(API_LIMITS.MAX_CANDLES, `Limit must be at most ${API_LIMITS.MAX_CANDLES}`)
+    .default(API_LIMITS.DEFAULT_CANDLES),
+}).strict();
+
+type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
 
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL;
@@ -46,44 +58,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Authentication: Verify cron secret to prevent unauthorized access
+  const CRON_SECRET = process.env.CRON_SECRET;
+  const providedSecret = req.headers['x-cron-secret'];
+
+  if (CRON_SECRET && providedSecret !== CRON_SECRET) {
+    log.warn('Unauthorized access attempt detected');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   const startTime = Date.now();
 
   try {
-    // Parse request
-    const {
-      symbol = 'BTC',
-      interval = '4h',
-      limit = 100,
-    }: AnalyzeRequest = req.body;
+    // Validate and parse request with Zod (runtime type safety)
+    const parseResult = AnalyzeRequestSchema.safeParse(req.body);
 
-    console.log(`[analyze-signals] Starting analysis for ${symbol} ${interval}`);
-
-    // Validate inputs
-    if (symbol !== 'BTC') {
-      return res.status(400).json({ error: 'Only BTC is supported currently' });
+    if (!parseResult.success) {
+      const errors = parseResult.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      log.warn('Invalid request parameters', { errors });
+      return res.status(400).json({
+        error: 'Invalid request parameters',
+        details: errors
+      });
     }
 
-    const validIntervals = ['1m', '5m', '15m', '1h', '4h', '1d'];
-    if (!validIntervals.includes(interval)) {
-      return res.status(400).json({ error: `Invalid interval. Must be one of: ${validIntervals.join(', ')}` });
-    }
+    const { symbol, interval, limit } = parseResult.data;
 
-    if (limit < 50 || limit > 500) {
-      return res.status(400).json({ error: 'Limit must be between 50 and 500' });
-    }
+    log.info('Starting analysis', { symbol, interval, limit });
 
     // Step 1: Fetch candles from Hyperliquid
-    console.log('[analyze-signals] Step 1: Fetching candles from Hyperliquid...');
+    log.info('Step 1: Fetching candles from Hyperliquid');
     const candles = await fetchCandles(symbol, interval, limit);
 
     if (candles.length === 0) {
+      log.error('No candles received from Hyperliquid');
       return res.status(500).json({ error: 'No candles received from Hyperliquid' });
     }
 
-    console.log(`[analyze-signals] Fetched ${candles.length} candles`);
+    log.info('Fetched candles from Hyperliquid', { count: candles.length });
 
     // Step 2: Save candles to Supabase
-    console.log('[analyze-signals] Step 2: Saving candles to Supabase...');
+    log.info('Step 2: Saving candles to Supabase');
     const supabase = getSupabaseClient();
 
     // Prepare candles for upsert (remove id and created_at)
@@ -107,24 +122,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
     if (insertError) {
-      console.error('[analyze-signals] Error saving candles:', insertError);
+      log.error('Error saving candles to Supabase', insertError);
       // Continue anyway - we still have candles in memory
     } else {
-      console.log(`[analyze-signals] Saved ${candles.length} candles to Supabase`);
+      log.info('Saved candles to Supabase', { count: candles.length });
     }
 
     // Step 3: Prepare AI payload with TOON format (send all 100 candles for full context)
-    console.log('[analyze-signals] Step 3: Preparing TOON payload...');
+    log.info('Step 3: Preparing TOON payload');
     const { toonData, indicators } = prepareAIPayload(candles, symbol, interval, 100);
-    console.log(`[analyze-signals] TOON data length: ${toonData.length} characters, candles sent: 100`);
+    log.debug('TOON payload prepared', { length: toonData.length, candlesSent: 100 });
 
     // Step 4: Call GPT-4o-mini for analysis
-    console.log('[analyze-signals] Step 4: Calling GPT-4o-mini...');
+    log.info('Step 4: Calling GPT-4o-mini for analysis');
     const aiSignal = await analyzeTradingSignal(toonData);
-    console.log('[analyze-signals] AI Signal:', aiSignal);
+    log.info('AI signal generated', { signal: aiSignal.signal, confidence: aiSignal.confidence });
 
     // Step 5: Save trading signal to database
-    console.log('[analyze-signals] Step 5: Saving trading signal...');
+    log.info('Step 5: Saving trading signal to database');
     const latestCandle = candles[candles.length - 1];
 
     if (!latestCandle) {
@@ -149,14 +164,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single();
 
     if (signalError) {
-      console.error('[analyze-signals] Error saving signal:', signalError);
+      log.error('Error saving signal to database', signalError);
       return res.status(500).json({ error: `Failed to save signal: ${signalError.message}` });
     }
 
     // Step 6: Save technical indicators to database
-    console.log('[analyze-signals] Step 6: Saving technical indicators...');
+    log.info('Step 6: Saving technical indicators to database');
 
     if (!signalData) {
+      log.error('Signal was saved but no data returned');
       return res.status(500).json({ error: 'Signal was saved but no data returned' });
     }
 
@@ -187,25 +203,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
     if (indicatorsError) {
-      console.error('[analyze-signals] CRITICAL: Error saving indicators:', indicatorsError);
+      log.error('CRITICAL: Error saving indicators', indicatorsError, { signalId: signalData.id });
 
       // Rollback: Delete the signal we just created (orphan without indicators)
-      console.log('[analyze-signals] Rolling back signal due to indicators error...');
-      await supabase
+      log.warn('Rolling back signal due to indicators error', { signalId: signalData.id });
+      const { error: deleteError } = await supabase
         .from('btc_trading_signals')
         .delete()
         .eq('id', signalData.id);
+
+      if (deleteError) {
+        log.error('CRITICAL: Failed to rollback signal', deleteError, { signalId: signalData.id });
+        // Signal is now orphaned in database - manual cleanup may be required
+        return res.status(500).json({
+          error: `Failed to save indicators AND failed to rollback signal (ID: ${signalData.id}). Manual cleanup required.`
+        });
+      }
 
       return res.status(500).json({
         error: `Failed to save indicators: ${indicatorsError.message}. Signal was rolled back.`
       });
     }
 
-    console.log('[analyze-signals] Technical indicators saved successfully');
+    log.info('Technical indicators saved successfully');
 
     const processingTime = Date.now() - startTime;
 
-    console.log(`[analyze-signals] Success! Processed in ${processingTime}ms`);
+    log.info('Analysis completed successfully', { processingTime });
 
     // Return success response
     return res.status(200).json({
@@ -229,7 +253,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('[analyze-signals] Error:', error);
+    log.error('Unhandled error during analysis', error);
 
     const processingTime = Date.now() - startTime;
 

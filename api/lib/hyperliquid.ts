@@ -1,17 +1,37 @@
+import { z } from 'zod';
+import { createLogger } from './logger.js';
+
+const log = createLogger('hyperliquid');
+
 const HYPERLIQUID_API_URL = 'https://api.hyperliquid.xyz/info';
 
-interface HyperliquidCandle {
-  t: number;  // open_time
-  T: number;  // close_time
-  s: string;  // symbol
-  i: string;  // interval
-  o: string;  // open
-  c: string;  // close
-  h: string;  // high
-  l: string;  // low
-  v: string;  // volume
-  n: number;  // trades_count
-}
+// Zod schema for runtime validation of Hyperliquid API responses
+const HyperliquidCandleSchema = z.object({
+  t: z.number().int().positive('open_time must be a positive integer'),
+  T: z.number().int().positive('close_time must be a positive integer'),
+  s: z.string().min(1, 'symbol cannot be empty'),
+  i: z.string().min(1, 'interval cannot be empty'),
+  o: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: 'open must be a valid positive number string',
+  }),
+  c: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: 'close must be a valid positive number string',
+  }),
+  h: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: 'high must be a valid positive number string',
+  }),
+  l: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: 'low must be a valid positive number string',
+  }),
+  v: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, {
+    message: 'volume must be a valid non-negative number string',
+  }),
+  n: z.number().int().nonnegative('trades_count must be a non-negative integer'),
+});
+
+const HyperliquidResponseSchema = z.array(HyperliquidCandleSchema);
+
+type HyperliquidCandle = z.infer<typeof HyperliquidCandleSchema>;
 
 export interface Candle {
   symbol: string;
@@ -55,10 +75,21 @@ export async function fetchCandles(
     throw new Error(`Hyperliquid API error: ${response.status}`);
   }
 
-  const data: HyperliquidCandle[] = await response.json();
+  const rawData = await response.json();
 
-  if (!Array.isArray(data)) {
-    throw new Error('Invalid response from Hyperliquid');
+  // Validate response with Zod (runtime type safety)
+  const parseResult = HyperliquidResponseSchema.safeParse(rawData);
+
+  if (!parseResult.success) {
+    const errors = parseResult.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    throw new Error(`Invalid Hyperliquid API response format: ${errors}`);
+  }
+
+  const data = parseResult.data;
+
+  // Additional validation: ensure we got some candles
+  if (data.length === 0) {
+    log.warn('API returned empty array - no candles available', { symbol, interval, limit });
   }
 
   return data.map((hc) => ({

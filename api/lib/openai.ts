@@ -1,6 +1,27 @@
+import { z } from 'zod';
+import { AI_CONFIG, PRICE_VALIDATION } from './constants.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('openai');
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = 'gpt-4o-mini';
+const OPENAI_MODEL = AI_CONFIG.MODEL;
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+
+// Validate API key is configured
+if (!OPENAI_API_KEY) {
+  throw new Error('OPENAI_API_KEY environment variable is not configured');
+}
+
+// Zod schema for runtime validation of AI responses
+const TradingSignalSchema = z.object({
+  signal: z.enum(['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL']),
+  confidence: z.number().min(0).max(100),
+  entry_price: z.number(),
+  stop_loss: z.number(),
+  take_profit: z.number(),
+  reasoning: z.string().min(10, 'Reasoning must be at least 10 characters'),
+});
 
 const SYSTEM_PROMPT = `You are a selective swing trader specializing in BTC 4h charts. You only take 1 high-quality trade per day.
 
@@ -41,7 +62,7 @@ export interface TradingSignal {
 }
 
 export async function analyzeTradingSignal(toonData: string): Promise<TradingSignal> {
-  console.log('[OpenAI] Analyzing with GPT-4o-mini...');
+  log.info('Analyzing market data with GPT-4o-mini');
 
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
@@ -62,14 +83,15 @@ ${toonData}
 Apply your analysis framework and provide your signal.`
         },
       ],
-      temperature: 0.9,
-      max_tokens: 500,
+      temperature: AI_CONFIG.TEMPERATURE,
+      max_tokens: AI_CONFIG.MAX_TOKENS,
       response_format: { type: 'json_object' },
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
+    log.error('OpenAI API request failed', null, { status: response.status, error });
     throw new Error(`OpenAI API error: ${response.status} - ${error}`);
   }
 
@@ -77,63 +99,56 @@ Apply your analysis framework and provide your signal.`
   const content = data.choices[0]?.message?.content;
 
   if (!content) {
+    log.error('Empty response from OpenAI');
     throw new Error('No response from OpenAI');
   }
 
-  const signal: TradingSignal = JSON.parse(content);
-  validateSignal(signal);
+  // Parse and validate with Zod (runtime type safety)
+  const parsedContent = JSON.parse(content);
+  const signal = TradingSignalSchema.parse(parsedContent);
 
-  console.log('[OpenAI] Signal generated:', signal.signal);
-  console.log('[OpenAI] AI calculations - Entry:', signal.entry_price, 'SL:', signal.stop_loss, 'TP:', signal.take_profit);
+  // Additional business logic validation
+  validateSignalLogic(signal);
+
+  log.info('Trading signal generated', {
+    signal: signal.signal,
+    confidence: signal.confidence,
+    entry: signal.entry_price,
+    stopLoss: signal.stop_loss,
+    takeProfit: signal.take_profit,
+  });
 
   return signal;
 }
 
 /**
- * Validates trading signal structure and logic
+ * Validates trading signal business logic (price relationships, R:R ratio, etc.)
+ * Zod handles basic type validation, this handles domain-specific rules
  */
-function validateSignal(signal: any): asserts signal is TradingSignal {
-  const validSignals = ['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL'];
-
-  // 1. Validate basic fields
-  if (!validSignals.includes(signal.signal)) {
-    throw new Error(`Invalid signal type: ${signal.signal}`);
-  }
-
-  if (typeof signal.confidence !== 'number' || signal.confidence < 0 || signal.confidence > 100) {
-    throw new Error(`Invalid confidence: ${signal.confidence} (must be 0-100)`);
-  }
-
-  if (!signal.reasoning || signal.reasoning.length < 10) {
-    throw new Error('Reasoning is missing or too short');
-  }
-
+function validateSignalLogic(signal: TradingSignal): void {
   const isBuy = signal.signal === 'BUY' || signal.signal === 'STRONG_BUY';
   const isSell = signal.signal === 'SELL' || signal.signal === 'STRONG_SELL';
   const isHold = signal.signal === 'HOLD';
 
-  // 2. Handle HOLD signals (set defaults if missing)
+  // HOLD signals don't need price validation
   if (isHold) {
-    signal.entry_price = signal.entry_price ?? 0;
-    signal.stop_loss = signal.stop_loss ?? 0;
-    signal.take_profit = signal.take_profit ?? 0;
-    return; // No further validation needed for HOLD
+    return;
   }
 
-  // 3. Validate trade signals (BUY/SELL) have all price fields
-  if (typeof signal.entry_price !== 'number' || signal.entry_price <= 0) {
+  // Validate trade signals (BUY/SELL) have positive prices
+  if (signal.entry_price <= 0) {
     throw new Error(`Invalid entry_price: ${signal.entry_price}`);
   }
 
-  if (typeof signal.stop_loss !== 'number' || signal.stop_loss <= 0) {
+  if (signal.stop_loss <= 0) {
     throw new Error(`Invalid stop_loss: ${signal.stop_loss}`);
   }
 
-  if (typeof signal.take_profit !== 'number' || signal.take_profit <= 0) {
+  if (signal.take_profit <= 0) {
     throw new Error(`Invalid take_profit: ${signal.take_profit}`);
   }
 
-  // 4. Validate price order logic
+  // Validate price order logic
   if (isBuy && signal.stop_loss >= signal.entry_price) {
     throw new Error(`BUY signal: stop_loss (${signal.stop_loss}) must be below entry (${signal.entry_price})`);
   }
@@ -150,19 +165,27 @@ function validateSignal(signal: any): asserts signal is TradingSignal {
     throw new Error(`SELL signal: take_profit (${signal.take_profit}) must be below entry (${signal.entry_price})`);
   }
 
-  // 5. Validate R:R ratio (minimum 3:1 for swing trading)
+  // Validate R:R ratio (minimum 3:1 for swing trading)
   const risk = Math.abs(signal.entry_price - signal.stop_loss);
   const reward = Math.abs(signal.take_profit - signal.entry_price);
   const ratio = risk > 0 ? reward / risk : 0;
 
-  if (ratio < 3.0) {
-    console.warn(`[Warning] R:R ratio is ${ratio.toFixed(2)}:1 (target: 3:1). Signal may not be optimal.`);
+  if (ratio < AI_CONFIG.MIN_RR_RATIO) {
+    log.warn('R:R ratio below target', {
+      ratio: ratio.toFixed(2),
+      target: AI_CONFIG.MIN_RR_RATIO,
+      message: 'Signal may not be optimal',
+    });
   }
 
-  // 6. Log round numbers warning (informational only)
-  const isRoundNumber = (price: number) => price % 1000 === 0 || price % 5000 === 0;
+  // Log round numbers warning (informational only)
+  const isRoundNumber = (price: number) =>
+    PRICE_VALIDATION.PSYCHOLOGICAL_LEVELS.some(level => price % level === 0);
 
   if (isRoundNumber(signal.stop_loss) || isRoundNumber(signal.take_profit)) {
-    console.warn(`[Warning] Psychological levels detected. SL: ${signal.stop_loss}, TP: ${signal.take_profit}`);
+    log.warn('Psychological price levels detected', {
+      stopLoss: signal.stop_loss,
+      takeProfit: signal.take_profit,
+    });
   }
 }

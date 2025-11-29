@@ -24,6 +24,7 @@ jobs:
 
           response=$(curl -L -s -w "\n%{http_code}" -X POST ${{ secrets.VERCEL_API_URL }}/api/analyze-signals \
             -H "Content-Type: application/json" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
             -d '{
               "symbol": "BTC",
               "interval": "4h",

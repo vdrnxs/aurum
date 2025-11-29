@@ -8,6 +8,8 @@ import {
 } from '@tremor/react';
 import type { TradingSignal, SignalType } from '../types/database';
 import { SPACING, COLORS, COMPONENTS } from '../lib/styles';
+import { RISK_MANAGEMENT } from '../lib/constants';
+import { formatPrice } from '../utils/formatters';
 
 interface TradingSignalCardProps {
   signal: TradingSignal;
@@ -22,17 +24,6 @@ function getSignalColor(signal: SignalType): string {
     STRONG_SELL: 'red',
   };
   return colors[signal];
-}
-
-
-function formatPrice(price: number | null): string {
-  if (price === null) return 'N/A';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(price);
 }
 
 function calculateRiskReward(
@@ -51,11 +42,25 @@ function calculateRiskReward(
   if (isBuy) {
     const risk = Math.abs(entryPrice - stopLoss);
     const reward = Math.abs(takeProfit - entryPrice);
-    return risk > 0 ? reward / risk : null;
+
+    // Validate risk is not zero or too small
+    if (risk < RISK_MANAGEMENT.MIN_RISK_USD) return null;
+
+    const ratio = reward / risk;
+
+    // Reject absurd ratios (likely indicates bad data)
+    return ratio > RISK_MANAGEMENT.MAX_RR_RATIO ? null : ratio;
   } else {
     const risk = Math.abs(stopLoss - entryPrice);
     const reward = Math.abs(entryPrice - takeProfit);
-    return risk > 0 ? reward / risk : null;
+
+    // Validate risk is not zero or too small
+    if (risk < RISK_MANAGEMENT.MIN_RISK_USD) return null;
+
+    const ratio = reward / risk;
+
+    // Reject absurd ratios (likely indicates bad data)
+    return ratio > RISK_MANAGEMENT.MAX_RR_RATIO ? null : ratio;
   }
 }
 
@@ -68,9 +73,8 @@ export function TradingSignalCard({ signal }: TradingSignalCardProps) {
     signal.signal
   );
 
-  // Detect HOLD signal (entry = SL = TP)
-  const isHoldSignal = signal.signal === 'HOLD' ||
-    (signal.entry_price === signal.stop_loss && signal.stop_loss === signal.take_profit);
+  // Detect HOLD signal (trust backend signal type)
+  const isHoldSignal = signal.signal === 'HOLD';
 
   return (
     <Card>
@@ -141,7 +145,7 @@ export function TradingSignalCard({ signal }: TradingSignalCardProps) {
                 {riskReward ? `1:${riskReward.toFixed(2)}` : 'N/A'}
               </Metric>
               <Text className={`${SPACING.mt.xs} text-xs text-tremor-content-subtle`}>
-                {riskReward && riskReward >= 2 ? 'Favorable' : riskReward ? 'Moderate' : ''}
+                {riskReward && riskReward >= RISK_MANAGEMENT.FAVORABLE_RR_THRESHOLD ? 'Favorable' : riskReward ? 'Moderate' : ''}
               </Text>
             </Card>
           </Grid>

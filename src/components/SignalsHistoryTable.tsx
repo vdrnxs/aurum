@@ -10,6 +10,7 @@ import {
 } from '@tremor/react';
 import type { TradingSignal, SignalType } from '../types/database';
 import { COLORS } from '../lib/styles';
+import { formatPrice, formatDateTime } from '../utils/formatters';
 
 interface SignalsHistoryTableProps {
   signals: TradingSignal[];
@@ -24,27 +25,6 @@ function getSignalColor(signal: SignalType): string {
     STRONG_SELL: 'red',
   };
   return colors[signal];
-}
-
-function formatPrice(price: number | null): string {
-  if (price === null || price === 0) return '—';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(price);
-}
-
-function formatDateTime(dateString: string): string {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
 }
 
 
@@ -68,9 +48,8 @@ export function SignalsHistoryTable({ signals }: SignalsHistoryTableProps) {
         <TableBody>
           {signals.map((signal) => {
             const signalColor = getSignalColor(signal.signal);
-            // Detect HOLD signal
-            const isHold = signal.signal === 'HOLD' ||
-              (signal.entry_price === signal.stop_loss && signal.stop_loss === signal.take_profit);
+            // Detect HOLD signal (trust backend signal type)
+            const isHold = signal.signal === 'HOLD';
 
             return (
               <TableRow key={signal.id}>

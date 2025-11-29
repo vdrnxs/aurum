@@ -39,7 +39,43 @@ function App() {
   };
 
   useEffect(() => {
-    fetchSignal();
+    let isCancelled = false;
+
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [latestSignal, history, indicatorsData] = await Promise.all([
+          getLatestSignal('BTC', '4h'),
+          getSignalHistory('BTC', '4h', 20),
+          getLatestIndicators('4h')
+        ]);
+
+        // Only update state if component is still mounted
+        if (!isCancelled) {
+          setSignal(latestSignal);
+          setSignalHistory(history);
+          setIndicators(indicatorsData);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : 'Unknown error');
+          console.error('Error fetching signal:', err);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   if (loading) {
