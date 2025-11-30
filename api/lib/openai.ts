@@ -56,14 +56,7 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
 
 ${toonData}
 
-Con los indicadores que te he proporcionado:
-- Detrmina la dirección del mercado.
-- Encuentra el mejor precio de entrada basandote en puntos clave.
-
-
-A partir del precio de entrada, tus reglas de salida son:
-- TP atr x3.5
-- SL atr x1.5
+Con los indicadores que te he proporcionado, detrmina la dirección del mercado y encuentra el mejor precio de entrada. Tus reglas de salida son para TP atr x3.5 y para SL atr x1.5.
 `
         },
       ],
