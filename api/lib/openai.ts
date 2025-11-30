@@ -23,7 +23,7 @@ const TradingSignalSchema = z.object({
   reasoning: z.string().min(10, 'Reasoning must be at least 10 characters'),
 });
 
-const SYSTEM_PROMPT = `Eres un trader especializado en criptomonedas. Tu tarea es analizar el mercado de BTCUSD.
+const SYSTEM_PROMPT = `Eres un trader especializado en criptomonedas. Tu tarea es analizar el mercado de BTCUSD y generar una señalde trading.
 Ejemplo de salida en formato json:
 {"signal":"BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL","confidence":0-100,"entry_price":number,"stop_loss":number,"take_profit":number,"reasoning":"Resumen breve y claro en pocas frases de los factores clave of key factors"}
 `;
@@ -56,9 +56,14 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
 
 ${toonData}
 
-Con los indicadores que te he proporcionado detrmina la dirección del mercado.
-Determina el criterio de entrada en un punto clave.
-Tus reglas de salida son para tp atr x3 y sl atr x1.5.
+Con los indicadores que te he proporcionado:
+- Detrmina la dirección del mercado.
+- Encuentra el mejor precio de entrada basandote en puntos clave.
+
+
+A partir del precio de entrada, tus reglas de salida son:
+- TP atr x3.5
+- SL atr x1.5
 `
         },
       ],
