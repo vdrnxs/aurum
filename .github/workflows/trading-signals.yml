@@ -7,8 +7,9 @@ on:
   # 09:17 UTC - Europe market peak (London morning)
   # 15:17 UTC - US market active (10am EST)
   # 21:17 UTC - End of US trading day + crypto evening activity
-  schedule:
-    - cron: '17 1,9,15,21 * * *'
+  # DESACTIVADO - Descomentar para reactivar
+  # schedule:
+  #   - cron: '17 1,9,15,21 * * *'
 
   # Permitir ejecución manual desde GitHub Actions UI
   workflow_dispatch:
