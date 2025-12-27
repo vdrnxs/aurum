@@ -12,12 +12,22 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx}": ["next lint --fix"]
+    "*.{ts,tsx}": [
+      "next lint --fix"
+    ]
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
+    "@tanstack/react-query": "^5.90.12",
+    "@toon-format/toon": "^2.1.0",
+    "clsx": "^2.1.1",
+    "indicatorts": "^2.2.2",
     "next": "16.1.1",
+    "openai": "^6.15.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
