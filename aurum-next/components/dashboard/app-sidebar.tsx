@@ -5,7 +5,6 @@ import { Activity, BarChart3, Settings } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -103,16 +102,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter>
-        <div className="rounded-lg bg-sidebar-accent p-4">
-          <p className="text-xs font-medium text-sidebar-foreground">BTC/USDT</p>
-          <p className="mt-1 font-mono text-lg font-bold text-success">
-            $95,234.50
-          </p>
-          <p className="mt-1 text-xs text-success">+2.34%</p>
-        </div>
-      </SidebarFooter>
     </Sidebar>
   )
 }
