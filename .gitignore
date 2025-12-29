@@ -1,40 +1,112 @@
-# Logs
-logs
-*.log
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# pnpm
+.pnpm-store/
+pnpm-lock.yaml
+
+# Testing
+/coverage
+*.lcov
+.nyc_output
+
+# Next.js
+/.next/
+/out/
+.next
+.vercel
+
+# Production
+/build
+/dist
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Environment Variables (CRITICAL - never commit these)
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Keep example files
+!.env.example
+
+# Vercel
+.vercel
+
+# Debug Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
+.pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Operating System
+.DS_Store
+*.pem
+Thumbs.db
+desktop.ini
 
-# Shared types compiled files
-shared/*.js
-shared/*.d.ts
-shared/*.map
-
-# Environment variables
-.env
-.env.local
-.env.production
-backend/.env
-backend/.env.local
-backend/.env.production
-
-# Editor directories and files
+# Editor Directories
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
-.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# Editor Files
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*~
 
-.vercel
-.env*.local
+# Temporary Files
+*.tmp
+*.temp
+*.log
+*.cache
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Trading Logs (if generated)
+trading-logs/
+backtest-results/
+
+# Audit Reports (optional - can be committed)
+# AUDIT.md
+
+# Legacy Project (already deleted)
+aurum-next/
+
+# MacOS
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
