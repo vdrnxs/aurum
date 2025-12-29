@@ -1,73 +1,16 @@
-import { Hyperliquid } from 'hyperliquid';
 import { createLogger } from './logger';
+import { getSDK, getWalletAddress } from './sdk-client';
+import { toCoinSymbol, fromCoinSymbol } from '@/lib/utils/symbol';
+import { TRADING_CONFIG } from './constants';
+import type {
+  OrderRequest,
+  OrderResponse,
+  LimitOrderWithSLTPParams,
+  Position,
+  OpenOrder,
+} from '@/types/trading';
 
 const log = createLogger('trading');
-
-// ============================================
-// TYPES
-// ============================================
-
-export interface OrderRequest {
-  symbol: string;
-  side: 'BUY' | 'SELL';
-  size: number;
-  orderType: 'MARKET' | 'LIMIT';
-  price?: number;
-  timeInForce?: 'Gtc' | 'Ioc';
-  reduceOnly?: boolean;
-}
-
-export interface OrderResponse {
-  success: boolean;
-  data?: unknown;
-  error?: string;
-}
-
-export interface LimitOrderWithSLTPParams {
-  symbol: string;
-  side: 'BUY' | 'SELL';
-  entryPrice: number;
-  stopLoss: number;
-  takeProfit: number;
-  size: number;
-  leverage?: number;
-}
-
-export interface Position {
-  coin: string;
-  szi: string;
-  entryPx: string;
-  unrealizedPnl: string;
-  leverage: { value: number };
-}
-
-export interface OpenOrder {
-  coin: string;
-  side: string;
-  limitPx: string;
-  sz: string;
-  oid: number;
-  timestamp: number;
-}
-
-// ============================================
-// SDK CLIENT
-// ============================================
-
-function getSDK() {
-  const privateKey = process.env.HYPERLIQUID_API_WALLET_PRIVATE_KEY;
-  const isTestnet = process.env.HYPERLIQUID_TESTNET === 'true';
-
-  if (!privateKey) {
-    throw new Error('HYPERLIQUID_API_WALLET_PRIVATE_KEY not configured');
-  }
-
-  return new Hyperliquid({ privateKey, testnet: isTestnet, enableWs: false });
-}
-
-function getWalletAddress(): string {
-  return process.env.HYPERLIQUID_WALLET_ADDRESS || '0x9C28606164F91EB901ac54C5e68C6a85bC7369f9';
-}
 
 // ============================================
 // CORE FUNCTIONS
@@ -97,7 +40,7 @@ export async function getOpenOrders(symbol?: string): Promise<OpenOrder[]> {
   if (!orders || orders.length === 0) return [];
   if (!symbol) return orders;
 
-  const coin = `${symbol}-PERP`;
+  const coin = toCoinSymbol(symbol);
   return orders.filter((o: OpenOrder) => o.coin === coin);
 }
 
@@ -108,7 +51,7 @@ export async function getOpenOrders(symbol?: string): Promise<OpenOrder[]> {
 export async function placeOrder(order: OrderRequest): Promise<OrderResponse> {
   try {
     const sdk = getSDK();
-    const coin = `${order.symbol}-PERP`;
+    const coin = toCoinSymbol(order.symbol);
 
     let limitPrice = order.price;
 
@@ -121,7 +64,7 @@ export async function placeOrder(order: OrderRequest): Promise<OrderResponse> {
         throw new Error(`Unable to get price for ${coin}`);
       }
 
-      const slippage = order.side === 'BUY' ? 1.005 : 0.995; // 0.5% slippage
+      const slippage = order.side === 'BUY' ? TRADING_CONFIG.SLIPPAGE_BUY : TRADING_CONFIG.SLIPPAGE_SELL;
       limitPrice = Math.round(midPrice * slippage);
     }
 
@@ -160,9 +103,9 @@ export async function placeLimitOrderWithSLTP(
   params: LimitOrderWithSLTPParams
 ): Promise<OrderResponse> {
   try {
-    const { symbol, side, entryPrice, stopLoss, takeProfit, size, leverage = 1 } = params;
+    const { symbol, side, entryPrice, stopLoss, takeProfit, size, leverage = TRADING_CONFIG.DEFAULT_LEVERAGE } = params;
     const sdk = getSDK();
-    const coin = `${symbol}-PERP`;
+    const coin = toCoinSymbol(symbol);
 
     // 1. Set leverage
     log.info('Setting leverage', { symbol, leverage });
@@ -231,7 +174,7 @@ export async function placeLimitOrderWithSLTP(
 export async function closePosition(symbol: string): Promise<OrderResponse> {
   try {
     const positions = await getPositions();
-    const coin = `${symbol}-PERP`;
+    const coin = toCoinSymbol(symbol);
     const position = positions.find((p) => p.coin === coin);
 
     if (!position) {
@@ -259,7 +202,7 @@ export async function closePosition(symbol: string): Promise<OrderResponse> {
 export async function cancelOrder(symbol: string, orderId: number): Promise<OrderResponse> {
   try {
     const sdk = getSDK();
-    const coin = `${symbol}-PERP`;
+    const coin = toCoinSymbol(symbol);
 
     log.info('Canceling order', { coin, orderId });
     const result = await sdk.exchange.cancelOrder({ coin, o: orderId });
@@ -287,7 +230,7 @@ export async function cancelAllOrders(symbol?: string): Promise<OrderResponse> {
 
     const results = await Promise.all(
       orders.map((o) => {
-        const sym = o.coin.replace('-PERP', '');
+        const sym = fromCoinSymbol(o.coin);
         return cancelOrder(sym, o.oid);
       })
     );

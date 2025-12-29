@@ -51,3 +51,11 @@ export const SUPPORTED_INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as cons
 
 // Signal Types
 export const SIGNAL_TYPES = ['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL'] as const;
+
+// Trading Configuration
+export const TRADING_CONFIG = {
+  SLIPPAGE_BUY: 1.005,  // 0.5% slippage for buy orders
+  SLIPPAGE_SELL: 0.995, // 0.5% slippage for sell orders
+  DEFAULT_LEVERAGE: 1,
+  COIN_SUFFIX: '-PERP',
+} as const;
