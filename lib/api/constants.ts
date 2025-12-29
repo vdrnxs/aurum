@@ -11,23 +11,10 @@ export const AI_CONFIG = {
   MODEL: 'gpt-4o-mini',
 } as const;
 
-// ATR Multipliers for price calculation
+// ATR Multipliers for price calculation (used by AI)
 export const ATR_CONFIG = {
   MULTIPLIER_SL: 1.5, // Stop Loss = ATR × 1.5
   MULTIPLIER_TP: 3.5, // Take Profit = ATR × 3.5
-} as const;
-
-// RSI Thresholds
-export const RSI_THRESHOLDS = {
-  OVERBOUGHT: 75,
-  OVERSOLD: 25,
-  NEUTRAL: 50,
-} as const;
-
-// Stochastic Thresholds
-export const STOCHASTIC_THRESHOLDS = {
-  OVERBOUGHT: 80,
-  OVERSOLD: 20,
 } as const;
 
 // Price Validation
@@ -43,14 +30,8 @@ export const API_LIMITS = {
   DEFAULT_CANDLES: 100,
 } as const;
 
-// Supported Trading Pairs
-export const SUPPORTED_SYMBOLS = ['BTC', 'ETH', 'SOL', 'ARB', 'MATIC', 'LINK'] as const;
-
 // Supported Intervals
 export const SUPPORTED_INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const;
-
-// Signal Types
-export const SIGNAL_TYPES = ['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL'] as const;
 
 // Trading Configuration
 export const TRADING_CONFIG = {

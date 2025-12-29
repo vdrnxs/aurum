@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import { AI_CONFIG, PRICE_VALIDATION } from './constants';
+import { AI_CONFIG, ATR_CONFIG, PRICE_VALIDATION } from './constants';
 import { createLogger } from './logger';
 
 const log = createLogger('openai');
@@ -67,7 +67,7 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
 
 ${toonData}
 
-Con los indicadores que te he proporcionado, detrmina la dirección del mercado y encuentra el mejor precio de entrada. Tus reglas de salida son para TP atr x3.5 y para SL atr x1.5.
+Con los indicadores que te he proporcionado, determina la dirección del mercado y encuentra el mejor precio de entrada. Tus reglas de salida son para TP atr x${ATR_CONFIG.MULTIPLIER_TP} y para SL atr x${ATR_CONFIG.MULTIPLIER_SL}.
 `
       },
     ],

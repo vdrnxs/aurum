@@ -1,7 +1,5 @@
 import type { SignalType } from '@/types/database'
-
-const MIN_RISK_USD = 1
-const MAX_RR_RATIO = 100
+import { RISK_MANAGEMENT } from '@/lib/constants'
 
 /**
  * Calculates the Risk/Reward ratio for a trading signal
@@ -23,18 +21,18 @@ export function calculateRiskReward(
     const risk = Math.abs(entryPrice - stopLoss)
     const reward = Math.abs(takeProfit - entryPrice)
 
-    if (risk < MIN_RISK_USD) return null
+    if (risk < RISK_MANAGEMENT.MIN_RISK_USD) return null
 
     const ratio = reward / risk
-    return ratio > MAX_RR_RATIO ? null : ratio
+    return ratio > RISK_MANAGEMENT.MAX_RR_RATIO ? null : ratio
   } else {
     const risk = Math.abs(stopLoss - entryPrice)
     const reward = Math.abs(entryPrice - takeProfit)
 
-    if (risk < MIN_RISK_USD) return null
+    if (risk < RISK_MANAGEMENT.MIN_RISK_USD) return null
 
     const ratio = reward / risk
-    return ratio > MAX_RR_RATIO ? null : ratio
+    return ratio > RISK_MANAGEMENT.MAX_RR_RATIO ? null : ratio
   }
 }
 
