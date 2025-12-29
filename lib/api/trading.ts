@@ -14,6 +14,7 @@ export interface OrderRequest {
   orderType: 'MARKET' | 'LIMIT';
   price?: number;
   timeInForce?: 'Gtc' | 'Ioc';
+  reduceOnly?: boolean;
 }
 
 export interface OrderResponse {
@@ -83,7 +84,9 @@ export async function getPositions(): Promise<Position[]> {
   const sdk = getSDK();
   const wallet = getWalletAddress();
   const state = await sdk.info.perpetuals.getClearinghouseState(wallet);
-  return state.assetPositions.filter((p: Position) => parseFloat(p.szi) !== 0);
+  return state.assetPositions
+    .map((asset: { position: Position }) => asset.position)
+    .filter((p: Position) => parseFloat(p.szi) !== 0);
 }
 
 export async function getOpenOrders(symbol?: string): Promise<OpenOrder[]> {
@@ -111,11 +114,13 @@ export async function placeOrder(order: OrderRequest): Promise<OrderResponse> {
 
     // For MARKET orders, get current price + small slippage
     if (order.orderType === 'MARKET') {
-      const meta = await sdk.info.perpetuals.getAssetMeta();
-      const assetInfo = meta.universe.find((u: { name: string; midPx?: string; markPx?: string }) => u.name === coin);
-      if (!assetInfo) throw new Error(`Asset ${coin} not found`);
+      const allMids = await sdk.info.getAllMids();
+      const midPrice = parseFloat(allMids[coin] || '0');
 
-      const midPrice = parseFloat(assetInfo.midPx || assetInfo.markPx);
+      if (midPrice === 0) {
+        throw new Error(`Unable to get price for ${coin}`);
+      }
+
       const slippage = order.side === 'BUY' ? 1.005 : 0.995; // 0.5% slippage
       limitPrice = Math.round(midPrice * slippage);
     }

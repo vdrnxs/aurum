@@ -64,7 +64,7 @@ export async function DELETE(req: NextRequest) {
       message: symbol
         ? `Canceled all orders for ${symbol}`
         : 'Canceled all open orders',
-      ...result.data,
+      ...(result.data && typeof result.data === 'object' ? result.data : {}),
       error: result.error,
     }, { status: result.success ? 200 : 400 });
 
