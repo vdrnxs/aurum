@@ -1,207 +1,155 @@
 "use client"
 
-import { TradingSignal, SignalType } from "@/types/database"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { TradingSignal } from "@/types/database"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatPrice } from "@/lib/utils/formatters"
 import { calculatePercentageChange } from "@/lib/utils/calculations"
+import { getSignalVariant, getChartColor } from "@/lib/utils/signal-helpers"
 import { cn } from "@/lib/utils"
-import {
-  Label,
-  PolarGrid,
-  PolarRadiusAxis,
-  RadialBar,
-  RadialBarChart,
-} from "recharts"
-import {
-  ChartContainer,
-  type ChartConfig,
-} from "@/components/ui/chart"
+import { Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts"
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart"
 
 interface SignalCardProps {
   signal: TradingSignal
 }
 
-function getSignalVariant(signal: SignalType): "success" | "danger" | "warning" {
-  if (signal === 'STRONG_BUY' || signal === 'BUY') return 'success'
-  if (signal === 'STRONG_SELL' || signal === 'SELL') return 'danger'
-  return 'warning'
-}
-
-function getChartColor(variant: "success" | "danger" | "warning"): string {
-  if (variant === 'success') return 'var(--success)'
-  if (variant === 'danger') return 'var(--danger)'
-  return 'var(--warning)'
-}
-
 export function SignalCard({ signal }: SignalCardProps) {
   const variant = getSignalVariant(signal.signal)
-  const isHold = signal.signal === 'HOLD'
-
-  // Chart configuration
-  const chartData = [
-    { confidence: signal.confidence, fill: getChartColor(variant) },
-  ]
-
-  const chartConfig = {
-    confidence: {
-      label: "Confidence",
-    },
-  } satisfies ChartConfig
+  const chartData = [{ confidence: signal.confidence, fill: getChartColor(variant) }]
+  const chartConfig = { confidence: { label: "Confidence" } } satisfies ChartConfig
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={cn(
+      "flex h-full flex-col border-2 transition-colors",
+      variant === 'success' && "border-success/30 bg-success/5",
+      variant === 'danger' && "border-danger/30 bg-danger/5",
+      variant === 'warning' && "border-warning/30 bg-warning/5"
+    )}>
       <CardHeader className="pb-4">
-        {/* Top row: Symbol and Signal badge */}
-        <div className="flex items-center gap-3 mb-6">
-          <h2 className="text-2xl font-bold text-foreground">
-            {signal.symbol}
-          </h2>
-          <Badge
-            variant={variant}
-            className="text-sm font-semibold"
-          >
-            {signal.signal.replace('_', ' ')}
-          </Badge>
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <CardTitle className="text-base font-medium text-foreground">
+              {signal.symbol} - Latest Signal
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              AI-powered trading recommendation
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant={variant} className="text-xs">
+              {signal.signal.replace('_', ' ')}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {new Date(signal.created_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
+          </div>
         </div>
-
-        {isHold ? (
-          <div className="rounded-lg border-2 border-border bg-muted p-8 text-center">
-            <h3 className="text-3xl font-bold text-foreground">
-              Awaiting Opportunity
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground">No clear trend detected</p>
-          </div>
-        ) : (
-          <>
-            {/* Main content: Chart on left, Prices on right */}
-            <div className="flex items-start gap-6">
-              {/* Left: Radial Chart for Confidence */}
-              <div className="flex items-center justify-center">
-                <ChartContainer
-                  config={chartConfig}
-                  className="aspect-square h-[200px] w-[200px]"
-                >
-                  <RadialBarChart
-                    data={chartData}
-                    startAngle={0}
-                    endAngle={(signal.confidence / 100) * 360}
-                    innerRadius={70}
-                    outerRadius={90}
-                    width={200}
-                    height={200}
-                  >
-                    <PolarGrid
-                      gridType="circle"
-                      radialLines={false}
-                      stroke="none"
-                      className="first:fill-muted last:fill-background"
-                      polarRadius={[73, 67]}
-                    />
-                    <RadialBar dataKey="confidence" background cornerRadius={10} />
-                    <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
-                      <Label
-                        content={({ viewBox }) => {
-                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                            return (
-                              <text
-                                x={viewBox.cx}
-                                y={viewBox.cy}
-                                textAnchor="middle"
-                              >
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) - 12}
-                                  className={cn(
-                                    "fill-foreground text-3xl font-bold",
-                                    variant === 'success' && "fill-success",
-                                    variant === 'danger' && "fill-danger",
-                                    variant === 'warning' && "fill-warning"
-                                  )}
-                                >
-                                  {signal.confidence.toFixed(0)}%
-                                </tspan>
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) + 16}
-                                  className="fill-muted-foreground text-sm"
-                                >
-                                  Confidence
-                                </tspan>
-                              </text>
-                            )
-                          }
-                        }}
-                      />
-                    </PolarRadiusAxis>
-                  </RadialBarChart>
-                </ChartContainer>
-              </div>
-
-              {/* Right: Price Grid */}
-              <div className="flex-1 grid grid-cols-1 gap-3">
-                {/* Entry Price */}
-                <div className="rounded-lg bg-muted p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Entry Price
-                  </p>
-                  <p className="mt-1 font-mono text-3xl font-bold text-foreground">
-                    {formatPrice(signal.entry_price)}
-                  </p>
-                </div>
-
-                {/* Stop Loss and Take Profit */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border-l-4 border-danger bg-muted p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Stop Loss
-                    </p>
-                    <p className="mt-1 font-mono text-xl font-bold text-foreground">
-                      {formatPrice(signal.stop_loss)}
-                    </p>
-                    {signal.entry_price && signal.stop_loss && (
-                      <p className="mt-1 text-xs text-danger">
-                        -{Math.abs(
-                          calculatePercentageChange(signal.entry_price, signal.stop_loss)
-                        ).toFixed(2)}%
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="rounded-lg border-l-4 border-success bg-muted p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Take Profit
-                    </p>
-                    <p className="mt-1 font-mono text-xl font-bold text-foreground">
-                      {formatPrice(signal.take_profit)}
-                    </p>
-                    {signal.entry_price && signal.take_profit && (
-                      <p className="mt-1 text-xs text-success">
-                        +{Math.abs(
-                          calculatePercentageChange(signal.entry_price, signal.take_profit)
-                        ).toFixed(2)}%
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
       </CardHeader>
+      <CardContent className="flex-1">
+        <div className="space-y-5">
+          <div className="flex items-center gap-6">
+            <div className="shrink-0">
+              <ChartContainer config={chartConfig} className="aspect-square h-[140px] w-[140px]">
+                <RadialBarChart
+                  data={chartData}
+                  startAngle={0}
+                  endAngle={(signal.confidence / 100) * 360}
+                  innerRadius={45}
+                  outerRadius={65}
+                  width={140}
+                  height={140}
+                >
+                  <PolarGrid
+                    gridType="circle"
+                    radialLines={false}
+                    stroke="none"
+                    className="first:fill-muted last:fill-background"
+                    polarRadius={[50, 40]}
+                  />
+                  <RadialBar dataKey="confidence" background cornerRadius={10} />
+                  <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+                    <Label
+                      content={({ viewBox }) => {
+                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                          return (
+                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) - 6}
+                                className={cn(
+                                  "text-3xl font-bold",
+                                  variant === 'success' && "fill-success",
+                                  variant === 'danger' && "fill-danger",
+                                  variant === 'warning' && "fill-warning"
+                                )}
+                              >
+                                {signal.confidence.toFixed(0)}
+                              </tspan>
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) + 16}
+                                className="fill-muted-foreground text-xs"
+                              >
+                                Confidence
+                              </tspan>
+                            </text>
+                          )
+                        }
+                      }}
+                    />
+                  </PolarRadiusAxis>
+                </RadialBarChart>
+              </ChartContainer>
+            </div>
 
-      <CardContent className="space-y-4">
-        {/* AI Analysis */}
-        {signal.ai_reasoning && (
-          <div className="rounded-lg bg-muted p-4">
-            <p className="mb-2 text-sm font-semibold text-foreground">
-              AI Analysis
-            </p>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {signal.ai_reasoning}
-            </p>
+            <div className="flex flex-1 flex-col justify-center">
+              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Entry Price</p>
+              <p className="mt-2 font-mono text-4xl font-bold text-foreground">
+                {formatPrice(signal.entry_price)}
+              </p>
+            </div>
           </div>
-        )}
+
+          <div className="grid grid-cols-2 gap-5">
+            <div className="space-y-2 rounded-lg border-2 border-danger/50 bg-danger/10 p-5">
+              <p className="text-sm font-semibold uppercase tracking-wide text-danger">Stop Loss</p>
+              <p className="font-mono text-2xl font-bold text-foreground">
+                {formatPrice(signal.stop_loss)}
+              </p>
+              {signal.entry_price && signal.stop_loss && (
+                <p className="text-sm font-semibold text-danger">
+                  -{Math.abs(calculatePercentageChange(signal.entry_price, signal.stop_loss)).toFixed(1)}%
+                </p>
+              )}
+            </div>
+            <div className="space-y-2 rounded-lg border-2 border-success/50 bg-success/10 p-5">
+              <p className="text-sm font-semibold uppercase tracking-wide text-success">Take Profit</p>
+              <p className="font-mono text-2xl font-bold text-foreground">
+                {formatPrice(signal.take_profit)}
+              </p>
+              {signal.entry_price && signal.take_profit && (
+                <p className="text-sm font-semibold text-success">
+                  +{Math.abs(calculatePercentageChange(signal.entry_price, signal.take_profit)).toFixed(1)}%
+                </p>
+              )}
+            </div>
+          </div>
+
+          {signal.ai_reasoning && (
+            <div className="rounded-lg border border-border/50 bg-muted/10 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-foreground">AI Analysis</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {signal.ai_reasoning}
+              </p>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   )

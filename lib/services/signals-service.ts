@@ -49,7 +49,7 @@ export async function getSignalStats(
 ) {
   const { data, error } = await supabase
     .from('btc_trading_signals')
-    .select('signal, confidence')
+    .select('signal')
     .eq('symbol', symbol)
     .eq('interval', interval)
     .order('created_at', { ascending: false })
@@ -61,7 +61,6 @@ export async function getSignalStats(
       totalSignals: 0,
       buySignals: 0,
       sellSignals: 0,
-      avgConfidence: 0,
     }
   }
 
@@ -72,15 +71,10 @@ export async function getSignalStats(
   const sellSignals = signals.filter(
     (s) => s.signal === 'SELL' || s.signal === 'STRONG_SELL'
   ).length
-  const avgConfidence =
-    signals.length > 0
-      ? signals.reduce((sum, s) => sum + s.confidence, 0) / signals.length
-      : 0
 
   return {
     totalSignals: signals.length,
     buySignals,
     sellSignals,
-    avgConfidence,
   }
 }

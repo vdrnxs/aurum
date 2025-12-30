@@ -9,7 +9,7 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
-    "prepare": "husky"
+    "postinstall": "test -n \"$CI\" || husky"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { TradingSignal, SignalType } from "@/types/database"
+import { TradingSignal } from "@/types/database"
 import { Badge } from "@/components/ui/badge"
 import { formatPrice, formatDateTime } from "@/lib/utils/formatters"
+import { getSignalVariant } from "@/lib/utils/signal-helpers"
 import { cn } from "@/lib/utils"
 import {
   Pagination,
@@ -20,12 +21,6 @@ interface SignalsTableProps {
 }
 
 const ITEMS_PER_PAGE = 10
-
-function getSignalVariant(signal: SignalType): "success" | "danger" | "warning" {
-  if (signal === 'STRONG_BUY' || signal === 'BUY') return 'success'
-  if (signal === 'STRONG_SELL' || signal === 'SELL') return 'danger'
-  return 'warning'
-}
 
 export function SignalsTable({ signals }: SignalsTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
