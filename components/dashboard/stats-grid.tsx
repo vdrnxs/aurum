@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Label, Pie, PieChart } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   ChartContainer,
   ChartTooltip,
@@ -80,17 +80,7 @@ export function StatsGrid({ stats }: StatsGridProps) {
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader className="pb-4">
-        <div className="space-y-0.5">
-          <CardTitle className="text-base font-medium text-foreground">
-            Signal Distribution
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Historical signal breakdown
-          </p>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-1 items-center justify-center pb-4">
+      <CardContent className="flex flex-1 items-center justify-center p-6">
         <ChartContainer
           config={chartConfig}
           className="mx-auto aspect-square w-full max-w-[280px]"

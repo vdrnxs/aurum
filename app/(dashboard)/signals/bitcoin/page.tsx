@@ -8,7 +8,7 @@ import { getLatestSignal, getSignalHistory, getSignalStats } from "@/lib/service
 import { TradingSignal } from "@/types/database"
 import { Card, CardContent } from "@/components/ui/card"
 
-export default function DashboardPage() {
+export default function BitcoinSignalsPage() {
   const [latestSignal, setLatestSignal] = useState<TradingSignal | null>(null)
   const [signalHistory, setSignalHistory] = useState<TradingSignal[]>([])
   const [stats, setStats] = useState({
@@ -23,16 +23,16 @@ export default function DashboardPage() {
       setLoading(true)
       try {
         const [latest, history, statsData] = await Promise.all([
-          getLatestSignal(),
-          getSignalHistory(),
-          getSignalStats(),
+          getLatestSignal('BTC'),
+          getSignalHistory('BTC'),
+          getSignalStats('BTC'),
         ])
 
         setLatestSignal(latest)
         setSignalHistory(history)
         setStats(statsData)
       } catch (error) {
-        console.error('Error fetching dashboard data:', error)
+        console.error('Error fetching Bitcoin data:', error)
       } finally {
         setLoading(false)
       }

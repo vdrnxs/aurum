@@ -1,18 +1,23 @@
 "use client"
 
 import Link from "next/link"
-import { Activity, BarChart3, Settings } from "lucide-react"
+import { Activity, BarChart3, Settings, ChevronDown } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 const navItems = [
   {
@@ -21,6 +26,13 @@ const navItems = [
     icon: Activity,
     badge: null,
     disabled: false,
+    submenu: [
+      {
+        title: "Bitcoin",
+        href: "/signals/bitcoin",
+        symbol: "BTCUSDC",
+      },
+    ],
   },
   {
     title: "Analytics",
@@ -60,21 +72,58 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild disabled={item.disabled}>
-                    <Link href={item.disabled ? '#' : item.href} className={item.disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                      {item.badge && (
-                        <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {navItems.map((item) => {
+                if (item.submenu) {
+                  return (
+                    <Collapsible key={item.href} defaultOpen className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton disabled={item.disabled}>
+                            <item.icon />
+                            <span>{item.title}</span>
+                            {item.badge && (
+                              <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                                {item.badge}
+                              </Badge>
+                            )}
+                            <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.submenu.map((subitem) => (
+                              <SidebarMenuSubItem key={subitem.href}>
+                                <SidebarMenuSubButton asChild>
+                                  <Link href={subitem.href}>
+                                    <span>{subitem.title}</span>
+                                    <span className="ml-auto text-xs text-muted-foreground">{subitem.symbol}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  )
+                }
+
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild disabled={item.disabled}>
+                      <Link href={item.disabled ? '#' : item.href} className={item.disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                        {item.badge && (
+                          <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
