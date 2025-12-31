@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Activity, BarChart3, Settings, ChevronDown } from "lucide-react"
+import { Activity, BarChart3, Settings, ChevronDown, type LucideIcon } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,27 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
-const navItems = [
+type NavItemBase = {
+  title: string
+  href: string
+  icon: LucideIcon
+  badge?: string | null
+  disabled?: boolean
+}
+
+type NavItemWithSubmenu = NavItemBase & {
+  submenu: {
+    title: string
+    href: string
+    symbol: string
+  }[]
+}
+
+type NavItemSimple = NavItemBase
+
+type NavItem = NavItemWithSubmenu | NavItemSimple
+
+const navItems: NavItem[] = [
   {
     title: "Signals",
     href: "/",
@@ -43,7 +63,7 @@ const navItems = [
   },
 ]
 
-const settingsItems = [
+const settingsItems: NavItemSimple[] = [
   {
     title: "Settings",
     href: "#",
@@ -52,6 +72,10 @@ const settingsItems = [
     disabled: true,
   },
 ]
+
+function hasSubmenu(item: NavItem): item is NavItemWithSubmenu {
+  return 'submenu' in item
+}
 
 export function AppSidebar() {
   return (
@@ -73,7 +97,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
-                if (item.submenu) {
+                if (hasSubmenu(item)) {
                   return (
                     <Collapsible key={item.href} defaultOpen className="group/collapsible">
                       <SidebarMenuItem>
