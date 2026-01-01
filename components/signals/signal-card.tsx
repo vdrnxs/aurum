@@ -1,132 +1,164 @@
 "use client"
 
 import { TradingSignal } from "@/types/database"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { formatPrice } from "@/lib/utils/formatters"
-import { calculatePercentageChange } from "@/lib/utils/calculations"
-import { getSignalVariant, getChartColor } from "@/lib/utils/signal-helpers"
+import { formatPrice, formatDateTime } from "@/lib/utils/formatters"
+import { TrendingUp, TrendingDown, Minus, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts"
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart"
 
 interface SignalCardProps {
   signal: TradingSignal
 }
 
 export function SignalCard({ signal }: SignalCardProps) {
-  const variant = getSignalVariant(signal.signal)
-  const chartData = [{ confidence: signal.confidence, fill: getChartColor(variant) }]
-  const chartConfig = { confidence: { label: "Confidence" } } satisfies ChartConfig
+  const isHold = signal.signal === 'HOLD'
+  const isBuy = signal.signal === 'BUY' || signal.signal === 'STRONG_BUY'
+  const isSell = signal.signal === 'SELL' || signal.signal === 'STRONG_SELL'
+
+  // Calculate percentages and R:R ratio
+  const entryPrice = signal.entry_price || 0
+  const tpPrice = signal.take_profit || 0
+  const slPrice = signal.stop_loss || 0
+
+  const tpPercentage = entryPrice > 0 ? ((tpPrice - entryPrice) / entryPrice) * 100 : 0
+  const slPercentage = entryPrice > 0 ? ((slPrice - entryPrice) / entryPrice) * 100 : 0
+
+  const riskAmount = Math.abs(entryPrice - slPrice)
+  const rewardAmount = Math.abs(tpPrice - entryPrice)
+  const riskRewardRatio = riskAmount > 0 ? rewardAmount / riskAmount : 0
+
+  const signalConfig = {
+    BUY: {
+      color: 'text-green-500',
+      bg: 'bg-green-500/10',
+      icon: TrendingUp,
+      label: 'Buy',
+      variant: 'success' as const
+    },
+    STRONG_BUY: {
+      color: 'text-green-600',
+      bg: 'bg-green-600/10',
+      icon: TrendingUp,
+      label: 'Strong Buy',
+      variant: 'success' as const
+    },
+    SELL: {
+      color: 'text-red-500',
+      bg: 'bg-red-500/10',
+      icon: TrendingDown,
+      label: 'Sell',
+      variant: 'danger' as const
+    },
+    STRONG_SELL: {
+      color: 'text-red-600',
+      bg: 'bg-red-600/10',
+      icon: TrendingDown,
+      label: 'Strong Sell',
+      variant: 'danger' as const
+    },
+    HOLD: {
+      color: 'text-yellow-500',
+      bg: 'bg-yellow-500/10',
+      icon: Minus,
+      label: 'Hold',
+      variant: 'outline' as const
+    },
+  }
+
+  const config = signalConfig[signal.signal]
+  const Icon = config.icon
 
   return (
-    <Card className={cn(
-      "flex h-full flex-col border-2 transition-colors p-5",
-      variant === 'success' && "border-success/30 bg-success/5",
-      variant === 'danger' && "border-danger/30 bg-danger/5",
-      variant === 'warning' && "border-warning/30 bg-warning/5"
-    )}>
-      <CardContent className="flex-1 p-0">
-        <div className="space-y-3">
-          {/* Row 1: Confidence Chart + Entry Price + Badge */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="shrink-0">
-              <ChartContainer config={chartConfig} className="aspect-square h-[120px] w-[120px]">
-                <RadialBarChart
-                  data={chartData}
-                  startAngle={0}
-                  endAngle={(signal.confidence / 100) * 360}
-                  innerRadius={40}
-                  outerRadius={55}
-                  width={120}
-                  height={120}
-                >
-                  <PolarGrid
-                    gridType="circle"
-                    radialLines={false}
-                    stroke="none"
-                    className="first:fill-muted last:fill-background"
-                    polarRadius={[45, 35]}
-                  />
-                  <RadialBar dataKey="confidence" background cornerRadius={10} />
-                  <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
-                    <Label
-                      content={({ viewBox }) => {
-                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                          return (
-                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
-                              <tspan
-                                x={viewBox.cx}
-                                y={(viewBox.cy || 0) - 4}
-                                className={cn(
-                                  "text-2xl font-bold",
-                                  variant === 'success' && "fill-success",
-                                  variant === 'danger' && "fill-danger",
-                                  variant === 'warning' && "fill-warning"
-                                )}
-                              >
-                                {signal.confidence.toFixed(0)}
-                              </tspan>
-                              <tspan
-                                x={viewBox.cx}
-                                y={(viewBox.cy || 0) + 14}
-                                className="fill-muted-foreground text-xs"
-                              >
-                                Confidence
-                              </tspan>
-                            </text>
-                          )
-                        }
-                      }}
-                    />
-                  </PolarRadiusAxis>
-                </RadialBarChart>
-              </ChartContainer>
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={cn("rounded-lg p-2.5", config.bg)}>
+              <Icon className={cn("h-5 w-5", config.color)} />
             </div>
-
-            <div className="flex flex-1 flex-col justify-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Entry Price</p>
-              <p className="mt-1 font-mono text-3xl font-bold text-foreground">
-                {formatPrice(signal.entry_price)}
-              </p>
-            </div>
-
-            <Badge variant={variant} className="self-start text-xs">
-              {signal.signal.replace('_', ' ')}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5 rounded-lg border-2 border-danger/50 bg-danger/10 p-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-danger">Stop Loss</p>
-              <p className="font-mono text-2xl font-bold text-foreground">
-                {formatPrice(signal.stop_loss)}
-              </p>
-              {signal.entry_price && signal.stop_loss && (
-                <p className="text-sm font-semibold text-danger">
-                  -{Math.abs(calculatePercentageChange(signal.entry_price, signal.stop_loss)).toFixed(1)}%
-                </p>
-              )}
-            </div>
-            <div className="space-y-1.5 rounded-lg border-2 border-success/50 bg-success/10 p-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-success">Take Profit</p>
-              <p className="font-mono text-2xl font-bold text-foreground">
-                {formatPrice(signal.take_profit)}
-              </p>
-              {signal.entry_price && signal.take_profit && (
-                <p className="text-sm font-semibold text-success">
-                  +{Math.abs(calculatePercentageChange(signal.entry_price, signal.take_profit)).toFixed(1)}%
-                </p>
-              )}
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold">{signal.symbol}</h3>
+                <Badge variant={config.variant}>{config.label}</Badge>
+                {!isHold && (
+                  <Badge variant="outline">
+                    R:R {riskRewardRatio.toFixed(2)}:1
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                <Clock className="h-3 w-3" />
+                <span>{formatDateTime(signal.created_at)}</span>
+              </div>
             </div>
           </div>
 
+          {/* Confidence Chart */}
+          <div className="flex flex-col items-end gap-1">
+            <div className="text-xs font-medium text-muted-foreground">Confidence</div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn(
+                    "h-full transition-all",
+                    signal.confidence >= 80 ? "bg-green-500" :
+                    signal.confidence >= 60 ? "bg-yellow-500" :
+                    "bg-red-500"
+                  )}
+                  style={{ width: `${signal.confidence}%` }}
+                />
+              </div>
+              <span className="text-sm font-bold tabular-nums">{signal.confidence.toFixed(0)}%</span>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pt-4">
+        <div className="grid gap-4">
+          {/* Price Levels */}
+          {!isHold && (
+            <div className="grid grid-cols-3 gap-3">
+              {/* Entry Price */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">Entry Price</div>
+                <div className="font-mono text-base font-bold text-primary">
+                  {formatPrice(signal.entry_price)}
+                </div>
+              </div>
+
+              {/* Take Profit */}
+              <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">Take Profit</div>
+                <div className="font-mono text-base font-bold text-green-600">
+                  {formatPrice(signal.take_profit)}
+                </div>
+                <div className="mt-1.5 text-xs font-semibold text-green-600">
+                  +{Math.abs(tpPercentage).toFixed(2)}%
+                </div>
+              </div>
+
+              {/* Stop Loss */}
+              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">Stop Loss</div>
+                <div className="font-mono text-base font-bold text-red-600">
+                  {formatPrice(signal.stop_loss)}
+                </div>
+                <div className="mt-1.5 text-xs font-semibold text-red-600">
+                  {slPercentage.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* AI Reasoning */}
           {signal.ai_reasoning && (
-            <div className="rounded-lg border border-border/50 bg-muted/10 p-3">
-              <h3 className="mb-1.5 text-sm font-semibold text-foreground">AI Analysis</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">AI Analysis</div>
+              <div className="rounded-lg bg-muted/50 p-3 text-sm leading-relaxed">
                 {signal.ai_reasoning}
-              </p>
+              </div>
             </div>
           )}
         </div>

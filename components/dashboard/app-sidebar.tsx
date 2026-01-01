@@ -101,7 +101,7 @@ export function AppSidebar() {
                   return (
                     <Collapsible key={item.href} defaultOpen className="group/collapsible">
                       <SidebarMenuItem>
-                        <CollapsibleTrigger asChild>
+                        <CollapsibleTrigger asChild suppressHydrationWarning>
                           <SidebarMenuButton disabled={item.disabled}>
                             <item.icon />
                             <span>{item.title}</span>
@@ -113,7 +113,7 @@ export function AppSidebar() {
                             <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
                           </SidebarMenuButton>
                         </CollapsibleTrigger>
-                        <CollapsibleContent>
+                        <CollapsibleContent suppressHydrationWarning>
                           <SidebarMenuSub>
                             {item.submenu.map((subitem) => (
                               <SidebarMenuSubItem key={subitem.href}>
