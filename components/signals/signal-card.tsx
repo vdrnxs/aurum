@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatPrice, formatDateTime } from "@/lib/utils/formatters"
 import { TrendingUp, TrendingDown, Minus, Clock } from "lucide-react"
+import { TokenBTC, TokenETH, TokenSOL } from "@web3icons/react"
 import { cn } from "@/lib/utils"
 
 interface SignalCardProps {
@@ -29,6 +30,15 @@ export function SignalCard({ signal }: SignalCardProps) {
   const riskAmount = Math.abs(entryPrice - slPrice)
   const rewardAmount = Math.abs(tpPrice - entryPrice)
   const riskRewardRatio = riskAmount > 0 ? rewardAmount / riskAmount : 0
+
+  // Token icon mapping
+  const tokenIcons: Record<string, React.ComponentType<{ size?: number; variant?: string; className?: string }>> = {
+    'BTC': TokenBTC,
+    'ETH': TokenETH,
+    'SOL': TokenSOL,
+  }
+
+  const TokenIcon = tokenIcons[signal.symbol] || TokenBTC // Fallback to BTC if unknown
 
   const signalConfig = {
     BUY: {
@@ -69,25 +79,19 @@ export function SignalCard({ signal }: SignalCardProps) {
   }
 
   const config = signalConfig[signal.signal]
-  const Icon = config.icon
 
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={cn("rounded-lg p-2.5", config.bg)}>
-              <Icon className={cn("h-5 w-5", config.color)} />
+            <div className="rounded-lg bg-muted p-2.5">
+              <TokenIcon size={20} variant="branded" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold">{signal.symbol}</h3>
                 <Badge variant={config.variant}>{config.label}</Badge>
-                {!isHold && (
-                  <Badge variant="outline">
-                    R:R {riskRewardRatio.toFixed(2)}:1
-                  </Badge>
-                )}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                 <Clock className="h-3 w-3" />
@@ -162,6 +166,13 @@ export function SignalCard({ signal }: SignalCardProps) {
                     <div className="font-mono text-5xl font-bold tracking-tight text-primary">
                       {formatPrice(signal.entry_price)}
                     </div>
+                    {!isHold && (
+                      <div className="mt-3 flex items-center justify-center">
+                        <Badge variant="outline" className="text-xs">
+                          R:R {riskRewardRatio.toFixed(2)}:1
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
 
