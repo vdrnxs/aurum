@@ -21,6 +21,8 @@ export function SignalCard({ signal }: SignalCardProps) {
   const tpPrice = signal.take_profit || 0
   const slPrice = signal.stop_loss || 0
 
+  // For LONG: TP > EP, SL < EP (positive TP%, negative SL%)
+  // For SHORT: TP < EP, SL > EP (negative TP%, positive SL%)
   const tpPercentage = entryPrice > 0 ? ((tpPrice - entryPrice) / entryPrice) * 100 : 0
   const slPercentage = entryPrice > 0 ? ((slPrice - entryPrice) / entryPrice) * 100 : 0
 
@@ -100,12 +102,7 @@ export function SignalCard({ signal }: SignalCardProps) {
             <div className="flex items-center gap-2">
               <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
                 <div
-                  className={cn(
-                    "h-full transition-all",
-                    signal.confidence >= 80 ? "bg-green-500" :
-                    signal.confidence >= 60 ? "bg-yellow-500" :
-                    "bg-red-500"
-                  )}
+                  className="h-full bg-white transition-all"
                   style={{ width: `${signal.confidence}%` }}
                 />
               </div>
@@ -117,38 +114,92 @@ export function SignalCard({ signal }: SignalCardProps) {
 
       <CardContent className="pt-4">
         <div className="grid gap-4">
-          {/* Price Levels */}
+          {/* Price Levels - Trading Terminal Style */}
           {!isHold && (
-            <div className="grid grid-cols-3 gap-3">
-              {/* Entry Price */}
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                <div className="text-xs font-medium text-muted-foreground mb-1.5">Entry Price</div>
-                <div className="font-mono text-base font-bold text-primary">
-                  {formatPrice(signal.entry_price)}
+            <div className={cn(
+              "relative overflow-hidden rounded-xl border-2 border-border p-6",
+              isBuy ? "bg-gradient-to-r from-red-500/5 via-primary/5 to-green-500/5" : "bg-gradient-to-r from-green-500/5 via-primary/5 to-red-500/5"
+            )}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* LEFT SIDE - Context aware (SL for LONG, TP for SHORT) */}
+                {isBuy ? (
+                  <div className="relative text-center md:text-left">
+                    <div className="mb-3 flex items-center justify-center md:justify-start">
+                      <div className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-600">
+                        SL
+                      </div>
+                    </div>
+                    <div className="font-mono text-4xl font-bold tracking-tight text-red-600">
+                      {formatPrice(signal.stop_loss)}
+                    </div>
+                    <div className="mt-2 text-lg font-bold text-red-600">
+                      {slPercentage.toFixed(2)}%
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative text-center md:text-left">
+                    <div className="mb-3 flex items-center justify-center md:justify-start">
+                      <div className="rounded-full bg-green-500/20 px-3 py-1 text-xs font-bold text-green-600">
+                        TP
+                      </div>
+                    </div>
+                    <div className="font-mono text-4xl font-bold tracking-tight text-green-600">
+                      {formatPrice(signal.take_profit)}
+                    </div>
+                    <div className="mt-2 text-lg font-bold text-green-600">
+                      {tpPercentage.toFixed(2)}%
+                    </div>
+                  </div>
+                )}
+
+                {/* Entry Price - CENTER (Always) */}
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 opacity-50" />
+                  <div className="relative text-center px-4 py-2">
+                    <div className="mb-3 flex items-center justify-center">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Entry Price</div>
+                    </div>
+                    <div className="font-mono text-5xl font-bold tracking-tight text-primary">
+                      {formatPrice(signal.entry_price)}
+                    </div>
+                  </div>
                 </div>
+
+                {/* RIGHT SIDE - Context aware (TP for LONG, SL for SHORT) */}
+                {isBuy ? (
+                  <div className="relative text-center md:text-right">
+                    <div className="mb-3 flex items-center justify-center md:justify-end">
+                      <div className="rounded-full bg-green-500/20 px-3 py-1 text-xs font-bold text-green-600">
+                        TP
+                      </div>
+                    </div>
+                    <div className="font-mono text-4xl font-bold tracking-tight text-green-600">
+                      {formatPrice(signal.take_profit)}
+                    </div>
+                    <div className="mt-2 text-lg font-bold text-green-600">
+                      +{Math.abs(tpPercentage).toFixed(2)}%
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative text-center md:text-right">
+                    <div className="mb-3 flex items-center justify-center md:justify-end">
+                      <div className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-600">
+                        SL
+                      </div>
+                    </div>
+                    <div className="font-mono text-4xl font-bold tracking-tight text-red-600">
+                      {formatPrice(signal.stop_loss)}
+                    </div>
+                    <div className="mt-2 text-lg font-bold text-red-600">
+                      +{Math.abs(slPercentage).toFixed(2)}%
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Take Profit */}
-              <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
-                <div className="text-xs font-medium text-muted-foreground mb-1.5">Take Profit</div>
-                <div className="font-mono text-base font-bold text-green-600">
-                  {formatPrice(signal.take_profit)}
-                </div>
-                <div className="mt-1.5 text-xs font-semibold text-green-600">
-                  +{Math.abs(tpPercentage).toFixed(2)}%
-                </div>
-              </div>
-
-              {/* Stop Loss */}
-              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-                <div className="text-xs font-medium text-muted-foreground mb-1.5">Stop Loss</div>
-                <div className="font-mono text-base font-bold text-red-600">
-                  {formatPrice(signal.stop_loss)}
-                </div>
-                <div className="mt-1.5 text-xs font-semibold text-red-600">
-                  {slPercentage.toFixed(2)}%
-                </div>
-              </div>
+              {/* Visual Separators */}
+              <div className="absolute left-1/3 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-border to-transparent opacity-50" />
+              <div className="absolute left-2/3 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-border to-transparent opacity-50" />
             </div>
           )}
 
