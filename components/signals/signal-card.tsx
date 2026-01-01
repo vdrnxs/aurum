@@ -32,7 +32,7 @@ export function SignalCard({ signal }: SignalCardProps) {
   const riskRewardRatio = riskAmount > 0 ? rewardAmount / riskAmount : 0
 
   // Token icon mapping
-  const tokenIcons: Record<string, React.ComponentType<{ size?: number; variant?: string; className?: string }>> = {
+  const tokenIcons: Record<string, typeof TokenBTC> = {
     'BTC': TokenBTC,
     'ETH': TokenETH,
     'SOL': TokenSOL,
