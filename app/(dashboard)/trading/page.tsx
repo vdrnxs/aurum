@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RefreshCw, TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PositionRoadmap } from '@/components/trading/position-roadmap';
 
 interface Position {
   symbol: string;
@@ -198,6 +199,22 @@ export default function TradingDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Position Roadmap - Visual representation */}
+      {data?.positions && data.positions.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground">Position Overview</h2>
+          <div className="grid grid-cols-1 gap-4">
+            {data.positions.map((position, idx) => (
+              <PositionRoadmap
+                key={idx}
+                position={position}
+                orders={data.openOrders}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Positions & Orders Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
