@@ -10,7 +10,7 @@
 
 ```mermaid
 graph TD
-    A[CRON Scheduled Trigger] --> B[Serverless Function: /api/analyze-signals]
+    A[CRON Scheduled Trigger] --> B[Serverless Function: analyze-signals API]
 
     B --> C[1. Fetch OHLCV Candles]
     C --> |Hyperliquid REST API| C1[candleSnapshot request]
@@ -28,7 +28,7 @@ graph TD
     E2 --> F[4. AI Analysis]
     F --> F1[Cerebras z.ai-glm-4.6]
     F1 --> F2[ATR-based SL/TP calculation]
-    F2 --> F3[JSON: signal + confidence + reasoning]
+    F2 --> F3[JSON response with signal]
 
     F3 --> G[5. Validate & Store]
     G --> G1[Zod schema validation]
@@ -38,7 +38,7 @@ graph TD
     G3 --> H{6. Auto-trade?}
     H -->|Confidence met| H1[Calculate position size]
     H1 --> H2[Execute via Hyperliquid SDK]
-    H -->|No| I[Skip]
+    H -->|Skip| I[End]
 
     H2 --> J[(Supabase PostgreSQL)]
     I --> J
@@ -46,18 +46,18 @@ graph TD
     J --> J2[indicators table]
     J --> J3[candles table]
 
-    J --> K[Frontend: Dashboard Pages]
-    K --> K1[/signals/bitcoin]
-    K1 --> K2[Supabase client: read-only]
+    J --> K[Frontend Dashboard Pages]
+    K --> K1[Signals Page]
+    K1 --> K2[Supabase client read-only]
     K2 --> K3[Stats + Signal Card + History]
 
-    K --> K4[/trading]
-    K4 --> K5[GET /api/trade]
-    K5 --> K6[Hyperliquid SDK:<br/>getClearinghouseState<br/>getFrontendOrders]
-    K6 --> K7[Position Roadmaps<br/>+ P&L Tracking]
+    K --> K4[Trading Page]
+    K4 --> K5[GET trade API]
+    K5 --> K6[Hyperliquid SDK<br/>getClearinghouseState<br/>getFrontendOrders]
+    K6 --> K7[Position Roadmaps<br/>P&L Tracking]
 
     K7 --> L[Manual Trade Execution]
-    L --> L1[POST /api/trade]
+    L --> L1[POST trade API]
     L1 --> L2[Hyperliquid SDK Operations]
     L2 --> L3[1. Set Leverage]
     L3 --> L4[2. LIMIT Entry Order]
