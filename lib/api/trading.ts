@@ -135,7 +135,7 @@ export async function getPositions(): Promise<Position[]> {
 export async function getOpenOrders(symbol?: string): Promise<OpenOrder[]> {
   const sdk = getSDK();
   const vault = getVaultAddress(); // Use vault address (account with funds)
-  const orders = await sdk.info.getUserOpenOrders(vault);
+  const orders = await sdk.info.getFrontendOpenOrders(vault);
 
   if (!orders || orders.length === 0) return [];
   if (!symbol) return orders;

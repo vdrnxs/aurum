@@ -44,4 +44,11 @@ export interface OpenOrder {
   sz: string;
   oid: number;
   timestamp: number;
+  reduceOnly?: boolean;
+  orderType?: string; // "Limit", "Stop Market", "Take Profit Market", etc.
+  isTrigger?: boolean;
+  triggerPx?: string; // SDK returns string, not number
+  triggerCondition?: string;
+  isPositionTpsl?: boolean;
+  origSz?: string;
 }
