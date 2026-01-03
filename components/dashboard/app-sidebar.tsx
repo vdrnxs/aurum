@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Activity, BarChart3, Settings, ChevronDown, type LucideIcon } from "lucide-react"
+import { Activity, BarChart3, Settings, ChevronDown, Wallet, type LucideIcon } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -53,6 +53,13 @@ const navItems: NavItem[] = [
         symbol: "BTCUSDC",
       },
     ],
+  },
+  {
+    title: "Trading",
+    href: "/trading",
+    icon: Wallet,
+    badge: null,
+    disabled: false,
   },
   {
     title: "Analytics",

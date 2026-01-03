@@ -33,6 +33,10 @@ export default function DashboardLayout({
       breadcrumbs.push({ label: "Bitcoin", href: "/signals/bitcoin" })
     }
 
+    if (segments[0] === "trading") {
+      return [{ label: "Trading", href: "/trading" }]
+    }
+
     return breadcrumbs
   }
 
