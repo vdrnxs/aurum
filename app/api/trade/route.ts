@@ -144,6 +144,30 @@ export async function GET() {
       getOpenOrders(),
     ]);
 
+    // Map SDK orderType to our simplified types
+    const mapOrderType = (sdkOrderType?: string): 'ENTRY' | 'STOP_LOSS' | 'TAKE_PROFIT' | 'UNKNOWN' => {
+      if (!sdkOrderType) return 'UNKNOWN';
+
+      // SDK returns: "Limit", "Stop Market", "Take Profit Market", etc.
+      if (sdkOrderType.includes('Stop')) return 'STOP_LOSS';
+      if (sdkOrderType.includes('Take Profit')) return 'TAKE_PROFIT';
+      if (sdkOrderType === 'Limit') return 'ENTRY';
+
+      return 'UNKNOWN';
+    };
+
+    const formattedOrders = orders.map((o) => ({
+      symbol: o.coin.replace('-PERP', ''),
+      side: o.side,
+      price: o.limitPx,
+      size: o.sz,
+      orderId: o.oid,
+      timestamp: o.timestamp,
+      reduceOnly: o.reduceOnly || false,
+      orderType: mapOrderType(o.orderType),
+      triggerCondition: o.triggerCondition,
+    }));
+
     return NextResponse.json({
       success: true,
       accountBalance: balance,
@@ -154,14 +178,7 @@ export async function GET() {
         unrealizedPnl: p.unrealizedPnl,
         leverage: p.leverage.value,
       })),
-      openOrders: orders.map((o) => ({
-        symbol: o.coin.replace('-PERP', ''),
-        side: o.side,
-        price: o.limitPx,
-        size: o.sz,
-        orderId: o.oid,
-        timestamp: o.timestamp,
-      })),
+      openOrders: formattedOrders,
     });
   } catch (error) {
     console.error('[Trade API] Error:', error);
