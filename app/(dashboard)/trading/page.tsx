@@ -200,14 +200,12 @@ export default function TradingDashboard() {
       </div>
 
       {/* Positions & Orders Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Positions */}
         {data?.positions && data.positions.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Active Positions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-muted-foreground">Active Positions</h2>
+            <div className="space-y-2">
               {data?.positions.map((position, idx) => {
                 const isLong = Number(position.size) > 0;
                 const pnlValue = Number(position.unrealizedPnl);
@@ -242,16 +240,14 @@ export default function TradingDashboard() {
                   </div>
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* Order Book */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Order Book</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground">Order Book</h2>
+          <div className="space-y-2">
             {loading && !data ? (
               <div className="space-y-2">
                 <Skeleton className="h-12 w-full" />
@@ -288,8 +284,8 @@ export default function TradingDashboard() {
                 </div>
               ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
