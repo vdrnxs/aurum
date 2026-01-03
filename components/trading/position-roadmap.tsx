@@ -89,13 +89,15 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
               <TokenIcon size={16} variant="branded" />
             </div>
             <h3 className="font-bold text-lg">{position.symbol}</h3>
+          </div>
+          <div className="flex items-center gap-2">
             <Badge variant={isLong ? 'default' : 'secondary'} className="text-xs">
               {isLong ? 'LONG' : 'SHORT'}
             </Badge>
+            <Badge variant="outline" className="text-xs">
+              {position.leverage}x
+            </Badge>
           </div>
-          <Badge variant="outline" className="text-xs">
-            {position.leverage}x
-          </Badge>
         </div>
       </div>
 
