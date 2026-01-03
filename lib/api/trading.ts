@@ -1,5 +1,5 @@
 import { createLogger } from './logger';
-import { getSDK, getWalletAddress } from './sdk-client';
+import { getSDK, getWalletAddress, getVaultAddress } from './sdk-client';
 import { toCoinSymbol, fromCoinSymbol } from '@/lib/utils/symbol';
 import { TRADING_CONFIG } from './constants';
 import type {
@@ -13,20 +13,120 @@ import type {
 const log = createLogger('trading');
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Calculate position size based on risk management
+ *
+ * Formula: Position Size = (Account Balance × Risk %) / (Entry Price - Stop Loss)
+ *
+ * Example:
+ * - Balance: $1000
+ * - Risk: 2% = $20
+ * - Entry: $90,000
+ * - Stop Loss: $88,000
+ * - Distance to SL: $2,000
+ * - Position Size: $20 / $2,000 = 0.01 BTC ($900 position, but only risking $20)
+ *
+ * @param balance - Account balance in USD
+ * @param entryPrice - Entry price of the asset
+ * @param stopLoss - Stop loss price
+ * @param riskPercentage - Percentage of balance to risk (default 2%)
+ * @returns Position size in BTC (rounded to 3 decimals)
+ */
+export function calculatePositionSize(
+  balance: number,
+  entryPrice: number,
+  stopLoss: number,
+  riskPercentage: number = TRADING_CONFIG.RISK_PERCENTAGE
+): number {
+  // Calculate amount willing to risk in USD
+  const riskAmount = balance * (riskPercentage / 100);
+
+  // Calculate distance to stop loss
+  const slDistance = Math.abs(entryPrice - stopLoss);
+
+  if (slDistance === 0) {
+    log.warn('Stop loss distance is zero, using minimum position size');
+    return TRADING_CONFIG.MIN_POSITION_SIZE_BTC;
+  }
+
+  // Calculate position size based on risk
+  // Position Size = Risk Amount / Distance to SL
+  const positionSize = riskAmount / slDistance;
+
+  // Round to 3 decimals (0.001 is minimum for BTC)
+  const roundedSize = Math.floor(positionSize * 1000) / 1000;
+
+  // Calculate position value in USD
+  const positionValueUSD = roundedSize * entryPrice;
+
+  log.info('Position size calculation', {
+    balance,
+    riskPercentage,
+    riskAmount,
+    entryPrice,
+    stopLoss,
+    slDistance,
+    calculatedSize: positionSize,
+    roundedSize,
+    positionValueUSD,
+  });
+
+  // CRITICAL: Ensure position value never exceeds available balance
+  // Use 95% of balance as max to leave margin for fees
+  const maxPositionValueUSD = balance * 0.95;
+  if (positionValueUSD > maxPositionValueUSD) {
+    const maxSize = maxPositionValueUSD / entryPrice;
+    const roundedMaxSize = Math.floor(maxSize * 1000) / 1000;
+    const actualRisk = roundedMaxSize * slDistance;
+    const actualRiskPercentage = (actualRisk / balance) * 100;
+
+    log.warn('Position exceeds balance, reducing size', {
+      calculatedValueUSD: positionValueUSD,
+      maxValueUSD: maxPositionValueUSD,
+      originalSize: roundedSize,
+      adjustedSize: roundedMaxSize,
+      originalRiskPercentage: riskPercentage,
+      actualRiskPercentage: actualRiskPercentage.toFixed(2),
+    });
+
+    return roundedMaxSize;
+  }
+
+  // Ensure minimum position value ($10 USD)
+  if (positionValueUSD < TRADING_CONFIG.MIN_POSITION_VALUE_USD) {
+    const minSize = TRADING_CONFIG.MIN_POSITION_VALUE_USD / entryPrice;
+    const roundedMinSize = Math.ceil(minSize * 1000) / 1000; // Round up to ensure >= $10
+    log.warn('Position too small, using minimum', {
+      calculatedValueUSD: positionValueUSD,
+      minValueUSD: TRADING_CONFIG.MIN_POSITION_VALUE_USD,
+      adjustedSize: roundedMinSize,
+    });
+    return roundedMinSize;
+  }
+
+  // Ensure minimum BTC size
+  return Math.max(roundedSize, TRADING_CONFIG.MIN_POSITION_SIZE_BTC);
+}
+
+// ============================================
 // CORE FUNCTIONS
 // ============================================
 
 export async function getAccountBalance(): Promise<number> {
   const sdk = getSDK();
-  const wallet = getWalletAddress();
-  const state = await sdk.info.perpetuals.getClearinghouseState(wallet);
+  const vault = getVaultAddress(); // Use vault address (account with funds)
+  const state = await sdk.info.perpetuals.getClearinghouseState(vault);
+  log.info('Account balance retrieved', { vault, balance: state.marginSummary.accountValue });
   return parseFloat(state.marginSummary.accountValue);
 }
 
 export async function getPositions(): Promise<Position[]> {
   const sdk = getSDK();
-  const wallet = getWalletAddress();
-  const state = await sdk.info.perpetuals.getClearinghouseState(wallet);
+  const vault = getVaultAddress(); // Use vault address (account with funds)
+  const state = await sdk.info.perpetuals.getClearinghouseState(vault);
   return state.assetPositions
     .map((asset: { position: Position }) => asset.position)
     .filter((p: Position) => parseFloat(p.szi) !== 0);
@@ -34,8 +134,8 @@ export async function getPositions(): Promise<Position[]> {
 
 export async function getOpenOrders(symbol?: string): Promise<OpenOrder[]> {
   const sdk = getSDK();
-  const wallet = getWalletAddress();
-  const orders = await sdk.info.getUserOpenOrders(wallet);
+  const vault = getVaultAddress(); // Use vault address (account with funds)
+  const orders = await sdk.info.getUserOpenOrders(vault);
 
   if (!orders || orders.length === 0) return [];
   if (!symbol) return orders;
@@ -106,13 +206,21 @@ export async function placeLimitOrderWithSLTP(
     const { symbol, side, entryPrice, stopLoss, takeProfit, size, leverage = TRADING_CONFIG.DEFAULT_LEVERAGE } = params;
     const sdk = getSDK();
     const coin = toCoinSymbol(symbol);
+    const vault = getVaultAddress();
+    const apiWallet = getWalletAddress();
 
-    // 1. Set leverage
+    // Check if we're using a vault (API wallet trading on behalf of another account)
+    const isVaultMode = vault !== apiWallet;
+    const vaultAddress = isVaultMode ? vault : undefined;
+
+    log.info('Trading mode', { vault, apiWallet, isVaultMode });
+
+    // 1. Set leverage (vault is set at SDK level, not per call for leverage)
     log.info('Setting leverage', { symbol, leverage });
     await sdk.exchange.updateLeverage(coin, 'cross', leverage);
 
     // 2. Place entry LIMIT order
-    log.info('Placing entry order', { coin, side, price: entryPrice, size });
+    log.info('Placing entry order', { coin, side, price: entryPrice, size, vaultAddress });
     const entryResult = await sdk.exchange.placeOrder({
       coin,
       is_buy: side === 'BUY',
@@ -120,6 +228,7 @@ export async function placeLimitOrderWithSLTP(
       limit_px: entryPrice,
       reduce_only: false,
       order_type: { limit: { tif: 'Gtc' } },
+      vaultAddress,
     });
 
     if (entryResult.status !== 'ok') {
@@ -139,6 +248,7 @@ export async function placeLimitOrderWithSLTP(
         trigger: { triggerPx: stopLoss, isMarket: true, tpsl: 'sl' as const },
       },
       grouping: 'positionTpsl' as const,
+      vaultAddress,
     });
 
     // 4. Place Take Profit trigger
@@ -153,6 +263,7 @@ export async function placeLimitOrderWithSLTP(
         trigger: { triggerPx: takeProfit, isMarket: true, tpsl: 'tp' as const },
       },
       grouping: 'positionTpsl' as const,
+      vaultAddress,
     });
 
     return {

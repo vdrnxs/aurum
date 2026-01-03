@@ -3,9 +3,15 @@ import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { fetchCandles } from '@/lib/api/hyperliquid';
 import { prepareAIPayload } from '@/lib/api/toon';
-import { analyzeTradingSignal } from '@/lib/api/openai';
-import { SUPPORTED_INTERVALS, API_LIMITS } from '@/lib/api/constants';
+import { analyzeTradingSignal } from '@/lib/api/ai';
+import { SUPPORTED_INTERVALS, API_LIMITS, TRADING_CONFIG } from '@/lib/api/constants';
 import { createLogger } from '@/lib/api/logger';
+import {
+  placeLimitOrderWithSLTP,
+  getAccountBalance,
+  calculatePositionSize,
+  getPositions,
+} from '@/lib/api/trading';
 
 const log = createLogger('analyze-signals');
 
@@ -19,7 +25,7 @@ const log = createLogger('analyze-signals');
  * 2. Save/update candles in Supabase (upsert)
  * 3. Calculate technical indicators
  * 4. Convert to TOON format
- * 5. Send to GPT-4o-mini for analysis
+ * 5. Send to Cerebras z.ai-glm-4.6 for analysis
  * 6. Parse AI response (signal, SL, TP)
  * 7. Save to btc_trading_signals table
  */
@@ -102,8 +108,8 @@ export async function POST(request: NextRequest) {
     const { toonData, indicators } = prepareAIPayload(candles, symbol, interval, 100);
     log.debug('TOON payload prepared', { length: toonData.length, candlesSent: 100 });
 
-    // Step 4: Call GPT-4o-mini for analysis
-    log.info('Step 4: Calling GPT-4o-mini for analysis');
+    // Step 4: Call Cerebras AI for analysis
+    log.info('Step 4: Calling Cerebras z.ai-glm-4.6 for analysis');
     const aiSignal = await analyzeTradingSignal(toonData);
     log.info('AI signal generated', { signal: aiSignal.signal, confidence: aiSignal.confidence });
 
@@ -202,6 +208,105 @@ export async function POST(request: NextRequest) {
 
     log.info('Technical indicators saved successfully');
 
+    // Step 7: Execute trade automatically if enabled and signal meets criteria
+    let tradeResult = null;
+
+    if (TRADING_CONFIG.AUTO_TRADE_ENABLED) {
+      const shouldTrade = (
+        (aiSignal.signal === 'BUY' || aiSignal.signal === 'STRONG_BUY' || aiSignal.signal === 'SELL' || aiSignal.signal === 'STRONG_SELL') &&
+        aiSignal.confidence >= TRADING_CONFIG.MIN_CONFIDENCE_TO_TRADE
+      );
+
+      if (shouldTrade) {
+        log.info('Step 7: Auto-trading enabled - executing trade', {
+          signal: aiSignal.signal,
+          confidence: aiSignal.confidence,
+        });
+
+        try {
+          // Check if there's already an open position
+          const positions = await getPositions();
+          const existingPosition = positions.find((p) => p.coin === `${symbol}-PERP`);
+
+          if (existingPosition) {
+            log.warn('Position already exists for symbol, skipping trade', { symbol });
+            tradeResult = { skipped: true, reason: 'Position already exists' };
+          } else {
+            // Get account balance
+            const balance = await getAccountBalance();
+            log.info('Account balance retrieved', { balance });
+
+            if (balance < 10) {
+              log.warn('Insufficient balance for trading', { balance });
+              tradeResult = { skipped: true, reason: 'Insufficient balance' };
+            } else {
+              // Round prices to whole numbers FIRST (BTC requirement)
+              const entryPrice = Math.round(aiSignal.entry_price);
+              const stopLoss = Math.round(aiSignal.stop_loss);
+              const takeProfit = Math.round(aiSignal.take_profit);
+
+              // Calculate position size based on risk management
+              const size = calculatePositionSize(balance, entryPrice, stopLoss);
+              log.info('Position size calculated with risk management', {
+                size,
+                balance,
+                entryPrice,
+                stopLoss,
+                riskPercentage: TRADING_CONFIG.RISK_PERCENTAGE,
+              });
+
+              // Determine trade side
+              const side = aiSignal.signal === 'BUY' || aiSignal.signal === 'STRONG_BUY' ? 'BUY' : 'SELL';
+
+              log.info('Executing LIMIT order with SL/TP', {
+                symbol,
+                side,
+                entryPrice,
+                stopLoss,
+                takeProfit,
+                size,
+              });
+
+              // Execute trade
+              const orderResult = await placeLimitOrderWithSLTP({
+                symbol,
+                side,
+                entryPrice,
+                stopLoss,
+                takeProfit,
+                size,
+                leverage: 1,
+              });
+
+              tradeResult = orderResult;
+
+              if (orderResult.success) {
+                log.info('Trade executed successfully', { orderResult });
+              } else {
+                log.error('Trade execution failed', { error: orderResult.error, orderResult });
+              }
+            }
+          }
+        } catch (error) {
+          log.error('Error during auto-trade execution', error);
+          tradeResult = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
+        }
+      } else {
+        log.info('Signal does not meet auto-trade criteria', {
+          signal: aiSignal.signal,
+          confidence: aiSignal.confidence,
+          minConfidence: TRADING_CONFIG.MIN_CONFIDENCE_TO_TRADE,
+        });
+        tradeResult = { skipped: true, reason: 'Signal does not meet criteria' };
+      }
+    } else {
+      log.info('Auto-trading is disabled');
+      tradeResult = { skipped: true, reason: 'Auto-trading disabled' };
+    }
+
     const processingTime = Date.now() - startTime;
 
     log.info('Analysis completed successfully', { processingTime });
@@ -220,6 +325,7 @@ export async function POST(request: NextRequest) {
         reasoning: aiSignal.reasoning,
         candles_timestamp: latestCandle.open_time,
       },
+      trade: tradeResult,
       metadata: {
         candles_analyzed: candles.length,
         processing_time_ms: processingTime,

@@ -46,6 +46,14 @@ export function getWalletAddress(): string {
 }
 
 /**
+ * Get vault address (the account with funds that the API wallet controls)
+ * Falls back to wallet address if vault is not configured
+ */
+export function getVaultAddress(): string {
+  return process.env.HYPERLIQUID_VAULT_ADDRESS || getWalletAddress();
+}
+
+/**
  * Reset SDK instance (useful for testing)
  */
 export function resetSDK(): void {
