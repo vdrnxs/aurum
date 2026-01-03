@@ -99,38 +99,29 @@ export default function TradingDashboard() {
   };
 
   const getOrderTypeBadge = (orderType: Order['orderType'], side: string) => {
-    // Determine colors based on order type
-    let bgColor = '';
-    let textColor = '';
-    let label = '';
-
     switch (orderType) {
       case 'ENTRY':
-        bgColor = side === 'buy' ? 'bg-blue-500' : 'bg-orange-500';
-        textColor = 'text-white';
-        label = side === 'buy' ? 'LONG Entry' : 'SHORT Entry';
-        break;
+        const isLong = side === 'buy';
+        return (
+          <Badge className={isLong ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'}>
+            {isLong ? 'LONG Entry' : 'SHORT Entry'}
+          </Badge>
+        );
       case 'STOP_LOSS':
-        bgColor = 'bg-red-500';
-        textColor = 'text-white';
-        label = 'Stop Loss';
-        break;
+        return (
+          <Badge variant="outline" className="border-red-500 text-red-600 dark:text-red-400">
+            SL
+          </Badge>
+        );
       case 'TAKE_PROFIT':
-        bgColor = 'bg-green-500';
-        textColor = 'text-white';
-        label = 'Take Profit';
-        break;
+        return (
+          <Badge variant="outline" className="border-green-500 text-green-600 dark:text-green-400">
+            TP
+          </Badge>
+        );
       default:
-        bgColor = 'bg-gray-500';
-        textColor = 'text-white';
-        label = 'Unknown';
+        return <Badge variant="outline">Unknown</Badge>;
     }
-
-    return (
-      <Badge className={`${bgColor} ${textColor} hover:${bgColor}/90`}>
-        {label}
-      </Badge>
-    );
   };
 
   if (error) {
@@ -152,152 +143,135 @@ export default function TradingDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
+    <div className="container mx-auto p-6 space-y-4">
+      {/* Header with prominent Balance */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Trading Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Hyperliquid Testnet - Real-time account data
-          </p>
+        <div className="flex items-center gap-8">
+          {/* Primary Balance KPI */}
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Account Balance</p>
+            {loading && !data ? (
+              <Skeleton className="h-9 w-32" />
+            ) : (
+              <p className="text-3xl font-bold">${formatPrice(data?.accountBalance || '0')}</p>
+            )}
+          </div>
+
+          {/* Secondary KPIs */}
+          <div className="flex items-center gap-6 pl-8 border-l">
+            <div>
+              <p className="text-xs text-muted-foreground">Positions</p>
+              {loading && !data ? (
+                <Skeleton className="h-6 w-8" />
+              ) : (
+                <p className="text-lg font-bold">{data?.positions.length || 0}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Orders</p>
+              {loading && !data ? (
+                <Skeleton className="h-6 w-8" />
+              ) : (
+                <p className="text-lg font-bold">{data?.openOrders.length || 0}</p>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          {lastUpdate && (
-            <span className="text-sm text-muted-foreground">
-              Last update: {lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
+
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={fetchAccountData}
             disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
           <Button
             variant={autoRefresh ? 'default' : 'outline'}
             size="sm"
             onClick={() => setAutoRefresh(!autoRefresh)}
+            className="min-w-24"
           >
             <Activity className="h-4 w-4 mr-2" />
-            Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+            Auto {autoRefresh ? 'ON' : 'OFF'}
           </Button>
         </div>
       </div>
 
-      {/* Account Balance */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Account Balance
-          </CardTitle>
-          <CardDescription>Available margin for trading</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading && !data ? (
-            <Skeleton className="h-12 w-48" />
-          ) : (
-            <p className="text-4xl font-bold">
-              ${formatPrice(data?.accountBalance || '0')}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Positions & Orders Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Active Positions */}
+        {data?.positions && data.positions.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Active Positions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {data?.positions.map((position, idx) => {
+                const isLong = Number(position.size) > 0;
+                const pnlValue = Number(position.unrealizedPnl);
+                const isProfitable = pnlValue >= 0;
 
-      {/* Open Positions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Open Positions</CardTitle>
-          <CardDescription>
-            {data?.positions.length || 0} active position(s)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading && !data ? (
-            <div className="space-y-3">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
-          ) : data?.positions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No open positions
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {data?.positions.map((position, idx) => (
-                <div
-                  key={idx}
-                  className="border rounded-lg p-4 hover:bg-accent transition-colors"
-                >
+                return (
+                  <div key={idx} className="border rounded-lg p-3 hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold">{position.symbol}</h3>
+                        <Badge variant="default" className="text-xs">
+                          {isLong ? 'LONG' : 'SHORT'}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">{position.leverage}x</Badge>
+                      </div>
+                      <div className={`text-sm font-bold ${
+                        isProfitable ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {isProfitable ? '+' : ''}${formatPrice(position.unrealizedPnl)}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Size</p>
+                        <p className="font-medium">{Math.abs(Number(position.size))}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Entry</p>
+                        <p className="font-medium">${formatPrice(position.entryPrice)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Order Book */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Order Book</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {loading && !data ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : data?.openOrders.length === 0 ? (
+              <p className="text-muted-foreground text-center py-6 text-sm">
+                No open orders
+              </p>
+            ) : (
+              data?.openOrders.map((order, idx) => (
+                <div key={idx} className="border rounded-lg p-3 hover:bg-accent transition-colors">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold">{position.symbol}</h3>
-                      <Badge variant={Number(position.size) > 0 ? 'default' : 'destructive'}>
-                        {Number(position.size) > 0 ? 'LONG' : 'SHORT'}
-                      </Badge>
-                      <Badge variant="outline">{position.leverage}x</Badge>
-                    </div>
-                    {formatPnL(position.unrealizedPnl)}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Size</p>
-                      <p className="font-medium">{position.size}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Entry Price</p>
-                      <p className="font-medium">${formatPrice(position.entryPrice)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Unrealized PnL</p>
-                      <p className="font-medium">${formatPrice(position.unrealizedPnl)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Open Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Open Orders</CardTitle>
-          <CardDescription>
-            {data?.openOrders.length || 0} pending order(s)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading && !data ? (
-            <div className="space-y-3">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : data?.openOrders.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No open orders
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {data?.openOrders.map((order, idx) => (
-                <div
-                  key={idx}
-                  className="border rounded-lg p-4 hover:bg-accent transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold">{order.symbol}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-sm">{order.symbol}</h3>
                       {getOrderTypeBadge(order.orderType, order.side)}
                     </div>
-                    <span className="text-sm text-muted-foreground">
-                      ID: {order.orderId}
-                    </span>
+                    <span className="text-xs text-muted-foreground">#{order.orderId}</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <p className="text-muted-foreground">Price</p>
                       <p className="font-medium">${formatPrice(order.price)}</p>
@@ -308,22 +282,15 @@ export default function TradingDashboard() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Time</p>
-                      <p className="font-medium">
-                        {new Date(order.timestamp).toLocaleTimeString()}
-                      </p>
+                      <p className="font-medium">{new Date(order.timestamp).toLocaleTimeString()}</p>
                     </div>
                   </div>
-                  {order.triggerCondition && order.triggerCondition !== 'N/A' && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      Trigger: {order.triggerCondition}
-                    </div>
-                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
