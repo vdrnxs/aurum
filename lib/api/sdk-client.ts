@@ -52,11 +52,3 @@ export function getWalletAddress(): string {
 export function getVaultAddress(): string {
   return process.env.HYPERLIQUID_VAULT_ADDRESS || getWalletAddress();
 }
-
-/**
- * Reset SDK instance (useful for testing)
- */
-export function resetSDK(): void {
-  sdkInstance = null;
-  log.info('SDK instance reset');
-}
