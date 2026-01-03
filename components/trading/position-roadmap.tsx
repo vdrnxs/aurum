@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { TokenBTC, TokenETH, TokenSOL } from '@web3icons/react';
 
 interface PositionRoadmapProps {
   position: {
@@ -7,6 +7,7 @@ interface PositionRoadmapProps {
     size: string;
     entryPrice: string;
     unrealizedPnl: string;
+    leverage: string;
   };
   orders: Array<{
     symbol: string;
@@ -59,7 +60,6 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
 
   // Calculate price movement from entry
   const priceChangePercent = ((currentPrice - entryPrice) / entryPrice) * 100;
-  const priceChangeAmount = currentPrice - entryPrice;
 
   // Format price with proper thousands separator
   const formatPrice = (price: number) => {
@@ -71,14 +71,30 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
   const leftLinePercent = (1 / totalRR) * 100; // Risk portion
   const rightLinePercent = (riskRewardRatio / totalRR) * 100; // Reward portion
 
+  // Token icon mapping
+  const tokenIcons: Record<string, typeof TokenBTC> = {
+    'BTC': TokenBTC,
+    'ETH': TokenETH,
+    'SOL': TokenSOL,
+  };
+  const TokenIcon = tokenIcons[position.symbol] || TokenBTC;
+
   return (
     <div className="overflow-hidden rounded-lg border">
       {/* Header */}
       <div className="border-b bg-muted/30 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-lg">{position.symbol}</h3>
-          <Badge variant={isLong ? 'default' : 'secondary'} className="text-xs">
-            {isLong ? 'LONG' : 'SHORT'}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-muted p-2">
+              <TokenIcon size={16} variant="branded" />
+            </div>
+            <h3 className="font-bold text-lg">{position.symbol}</h3>
+            <Badge variant={isLong ? 'default' : 'secondary'} className="text-xs">
+              {isLong ? 'LONG' : 'SHORT'}
+            </Badge>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            {position.leverage}x
           </Badge>
         </div>
       </div>

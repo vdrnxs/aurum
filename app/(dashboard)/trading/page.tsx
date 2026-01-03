@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PositionRoadmap } from '@/components/trading/position-roadmap';
 
@@ -35,11 +35,12 @@ interface AccountData {
   openOrders: Order[];
 }
 
+const AUTO_REFRESH_INTERVAL = 10000; // 10 seconds
+
 export default function TradingDashboard() {
   const [data, setData] = useState<AccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const fetchAccountData = async () => {
@@ -55,7 +56,6 @@ export default function TradingDashboard() {
       }
 
       setData(result);
-      setLastUpdate(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -68,13 +68,13 @@ export default function TradingDashboard() {
     fetchAccountData();
   }, []);
 
-  // Auto-refresh every 10 seconds
+  // Auto-refresh
   useEffect(() => {
     if (!autoRefresh) return;
 
     const interval = setInterval(() => {
       fetchAccountData();
-    }, 10000); // 10 seconds
+    }, AUTO_REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
   }, [autoRefresh]);
