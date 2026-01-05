@@ -37,13 +37,13 @@ const TradingSignalSchema = z.object({
 
 const SYSTEM_PROMPT = `Eres un trader especializado en criptomonedas. Analiza el mercado de BTCUSD y genera una señal de trading en formato JSON.
 
-RESPONDE ÚNICAMENTE CON EL JSON, SIN TEXTO ADICIONAL.
+IMPORTANTE: El confidence no solo refleja la dirección del mercado, sino la probabilidad de éxito de la operación teniendo en cuenta divergencias, indicadores inflados (sobrecompra/sobreventa), y señales contradictorias.
 
 Para BUY/SELL: entry_price, stop_loss y take_profit deben ser números positivos.
 Para HOLD: usa 0 para entry_price, stop_loss y take_profit.
 
 Formato:
-{"signal":"BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL","confidence":0-100,"entry_price":number,"stop_loss":number,"take_profit":number,"reasoning":"Análisis breve (máx 2 frases)"}
+{"signal":"BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL","confidence":0-100,"entry_price":number,"stop_loss":number,"take_profit":number,"reasoning":"Análisis breve (máx 5 frases, en español)"}
 `;
 
 export interface TradingSignal {
@@ -68,7 +68,7 @@ export async function analyzeTradingSignal(toonData: string): Promise<TradingSig
 
 ${toonData}
 
-Con los indicadores que te he proporcionado, determina la dirección del mercado y encuentra el mejor precio de entrada. Tus reglas de salida son para TP atr x${ATR_CONFIG.MULTIPLIER_TP} y para SL atr x${ATR_CONFIG.MULTIPLIER_SL}.
+Con los indicadores que te he proporcionado, determina la dirección del mercado y encuentra el mejor precio de entrada. Tus reglas de salida son para TP atr x${ATR_CONFIG.MULTIPLIER_TP} y para SL atr x${ATR_CONFIG.MULTIPLIER_SL}. Para finalizar, agrega en el análisis una recomendación clara sobre qué hacer con una operación abierta (ya sea long o short) en función de la dirección detectada y de la señal final (strong buy, buy, hold, sell o strong sell).
 `
       },
     ],
