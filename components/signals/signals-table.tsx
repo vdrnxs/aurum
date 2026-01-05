@@ -85,6 +85,9 @@ export function SignalsTable({ signals }: SignalsTableProps) {
                   Created At
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Signal
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Confidence
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -101,11 +104,21 @@ export function SignalsTable({ signals }: SignalsTableProps) {
             <tbody className="divide-y divide-border bg-card">
               {currentSignals.map((signal) => {
                 const isHold = signal.signal === 'HOLD'
+                const isBuy = signal.signal === 'BUY' || signal.signal === 'STRONG_BUY'
+                const isSell = signal.signal === 'SELL' || signal.signal === 'STRONG_SELL'
+
+                // Badge variant for signal type
+                const signalVariant = isHold ? 'secondary' : isBuy ? 'default' : 'destructive'
 
                 return (
                   <tr key={signal.id} className="transition-colors hover:bg-accent">
                     <td className="whitespace-nowrap px-4 py-3 text-left text-sm text-foreground">
                       {formatDateTime(signal.created_at)}
+                    </td>
+                    <td className="px-4 py-3 text-left">
+                      <Badge variant={signalVariant} className="text-xs font-semibold">
+                        {signal.signal.replace('_', ' ')}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-left">
                       <span className="text-sm font-semibold text-foreground">
@@ -122,18 +135,18 @@ export function SignalsTable({ signals }: SignalsTableProps) {
                       {isHold ? (
                         <span className="text-sm text-muted-foreground">—</span>
                       ) : (
-                        <Badge variant="danger" className="font-mono text-xs">
+                        <span className="font-mono text-sm text-foreground">
                           {formatPrice(signal.stop_loss)}
-                        </Badge>
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-left">
                       {isHold ? (
                         <span className="text-sm text-muted-foreground">—</span>
                       ) : (
-                        <Badge variant="success" className="font-mono text-xs">
+                        <span className="font-mono text-sm text-foreground">
                           {formatPrice(signal.take_profit)}
-                        </Badge>
+                        </span>
                       )}
                     </td>
                   </tr>
