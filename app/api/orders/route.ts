@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOpenOrders, cancelOrder, cancelAllOrders } from '@/lib/api/trading';
+import { fromCoinSymbol } from '@/lib/utils/symbol';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger('orders-api');
 
 /**
  * GET /api/orders?symbol=BTC
@@ -16,7 +20,7 @@ export async function GET(req: NextRequest) {
       success: true,
       count: orders.length,
       orders: orders.map((o) => ({
-        symbol: o.coin.replace('-PERP', ''),
+        symbol: fromCoinSymbol(o.coin),
         side: o.side,
         price: o.limitPx,
         size: o.sz,
@@ -25,7 +29,7 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('[Orders API] GET Error:', error);
+    log.error('Error fetching orders', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
       { error: errorMessage },
@@ -69,7 +73,7 @@ export async function DELETE(req: NextRequest) {
     }, { status: result.success ? 200 : 400 });
 
   } catch (error) {
-    console.error('[Orders API] DELETE Error:', error);
+    log.error('Error canceling orders', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
       { error: errorMessage },

@@ -7,6 +7,10 @@ import {
   getOpenOrders,
   getAccountBalance,
 } from '@/lib/api/trading';
+import { fromCoinSymbol } from '@/lib/utils/symbol';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger('trade-api');
 
 /**
  * POST /api/trade - Execute trade
@@ -123,7 +127,7 @@ export async function POST(req: NextRequest) {
     );
 
   } catch (error) {
-    console.error('[Trade API] Error:', error);
+    log.error('Error executing trade', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
       { error: errorMessage, processing_time_ms: Date.now() - startTime },
@@ -157,7 +161,7 @@ export async function GET() {
     };
 
     const formattedOrders = orders.map((o) => ({
-      symbol: o.coin.replace('-PERP', ''),
+      symbol: fromCoinSymbol(o.coin),
       side: o.side,
       price: o.limitPx,
       size: o.sz,
@@ -172,7 +176,7 @@ export async function GET() {
       success: true,
       accountBalance: balance,
       positions: positions.map((p) => ({
-        symbol: p.coin.replace('-PERP', ''),
+        symbol: fromCoinSymbol(p.coin),
         size: p.szi,
         entryPrice: p.entryPx,
         unrealizedPnl: p.unrealizedPnl,
@@ -181,7 +185,7 @@ export async function GET() {
       openOrders: formattedOrders,
     });
   } catch (error) {
-    console.error('[Trade API] Error:', error);
+    log.error('Error fetching account info', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
       { error: errorMessage },
