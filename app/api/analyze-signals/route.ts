@@ -4,16 +4,14 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { fetchCandles } from '@/lib/api/hyperliquid';
 import { prepareAIPayload } from '@/lib/api/toon';
 import { analyzeTradingSignal } from '@/lib/api/ai';
-import { SUPPORTED_INTERVALS, API_LIMITS, TRADING_CONFIG } from '@/lib/api/constants';
+import { SUPPORTED_INTERVALS, API_LIMITS } from '@/lib/api/constants';
 import { createLogger } from '@/lib/api/logger';
-import {
-  placeLimitOrderWithSLTP,
-  getAccountBalance,
-  calculatePositionSize,
-  getPositions,
-} from '@/lib/api/trading';
+import { executeAutoTrade } from '@/lib/api/auto-trader';
 
 const log = createLogger('analyze-signals');
+
+// Singleton: Read CRON_SECRET once at module load time
+const CRON_SECRET = process.env.CRON_SECRET;
 
 /**
  * API Endpoint: POST /api/analyze-signals
@@ -43,7 +41,6 @@ const AnalyzeRequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   // Authentication: Verify cron secret to prevent unauthorized access
-  const CRON_SECRET = process.env.CRON_SECRET;
   const providedSecret = request.headers.get('x-cron-secret');
 
   if (CRON_SECRET && providedSecret !== CRON_SECRET) {
@@ -115,11 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Step 5: Save trading signal to database
     log.info('Step 5: Saving trading signal to database');
-    const latestCandle = candles[candles.length - 1];
-
-    if (!latestCandle) {
-      return NextResponse.json({ error: 'No candles available' }, { status: 500 });
-    }
+    const latestCandle = candles[candles.length - 1]; // Already validated candles.length > 0 at line 83
 
     const { data: signalData, error: signalError } = await supabaseServer
       .from('btc_trading_signals')
@@ -209,109 +202,15 @@ export async function POST(request: NextRequest) {
     log.info('Technical indicators saved successfully');
 
     // Step 7: Execute trade automatically if enabled and signal meets criteria
-    let tradeResult = null;
-
-    if (TRADING_CONFIG.AUTO_TRADE_ENABLED) {
-      const shouldTrade = (
-        (aiSignal.signal === 'BUY' || aiSignal.signal === 'STRONG_BUY' || aiSignal.signal === 'SELL' || aiSignal.signal === 'STRONG_SELL') &&
-        aiSignal.confidence >= TRADING_CONFIG.MIN_CONFIDENCE_TO_TRADE
-      );
-
-      if (shouldTrade) {
-        log.info('Step 7: Auto-trading enabled - executing trade', {
-          signal: aiSignal.signal,
-          confidence: aiSignal.confidence,
-        });
-
-        try {
-          // Check if there's already an open position
-          const positions = await getPositions();
-          const existingPosition = positions.find((p) => p.coin === `${symbol}-PERP`);
-
-          if (existingPosition) {
-            log.warn('Position already exists for symbol, skipping trade', { symbol });
-            tradeResult = { skipped: true, reason: 'Position already exists' };
-          } else {
-            // Get account balance
-            const balance = await getAccountBalance();
-            log.info('Account balance retrieved', { balance });
-
-            if (balance < 10) {
-              log.warn('Insufficient balance for trading', { balance });
-              tradeResult = { skipped: true, reason: 'Insufficient balance' };
-            } else {
-              // Round prices to whole numbers FIRST (BTC requirement)
-              const entryPrice = Math.round(aiSignal.entry_price);
-              const stopLoss = Math.round(aiSignal.stop_loss);
-              const takeProfit = Math.round(aiSignal.take_profit);
-
-              // Calculate position size based on risk management
-              const size = calculatePositionSize(balance, entryPrice, stopLoss);
-              log.info('Position size calculated with risk management', {
-                size,
-                balance,
-                entryPrice,
-                stopLoss,
-                riskPercentage: TRADING_CONFIG.RISK_PERCENTAGE,
-              });
-
-              // Determine trade side
-              const side = aiSignal.signal === 'BUY' || aiSignal.signal === 'STRONG_BUY' ? 'BUY' : 'SELL';
-
-              log.info('Executing LIMIT order with SL/TP', {
-                symbol,
-                side,
-                entryPrice,
-                stopLoss,
-                takeProfit,
-                size,
-              });
-
-              // Execute trade
-              const orderResult = await placeLimitOrderWithSLTP({
-                symbol,
-                side,
-                entryPrice,
-                stopLoss,
-                takeProfit,
-                size,
-                leverage: 1,
-              });
-
-              tradeResult = orderResult;
-
-              if (orderResult.success) {
-                log.info('Trade executed successfully', { orderResult });
-              } else {
-                log.error('Trade execution failed', { error: orderResult.error, orderResult });
-              }
-            }
-          }
-        } catch (error) {
-          log.error('Error during auto-trade execution', error);
-          tradeResult = {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          };
-        }
-      } else {
-        log.info('Signal does not meet auto-trade criteria', {
-          signal: aiSignal.signal,
-          confidence: aiSignal.confidence,
-          minConfidence: TRADING_CONFIG.MIN_CONFIDENCE_TO_TRADE,
-        });
-        tradeResult = { skipped: true, reason: 'Signal does not meet criteria' };
-      }
-    } else {
-      log.info('Auto-trading is disabled');
-      tradeResult = { skipped: true, reason: 'Auto-trading disabled' };
-    }
+    log.info('Step 7: Evaluating auto-trade conditions');
+    const tradeResult = await executeAutoTrade({ symbol, aiSignal });
 
     const processingTime = Date.now() - startTime;
 
     log.info('Analysis completed successfully', { processingTime });
 
     // Return success response
+    // Note: Prices are rounded for BTC (whole numbers required for trading)
     return NextResponse.json({
       success: true,
       signal: {
@@ -319,9 +218,9 @@ export async function POST(request: NextRequest) {
         interval,
         signal: aiSignal.signal,
         confidence: aiSignal.confidence,
-        entry_price: aiSignal.entry_price,
-        stop_loss: aiSignal.stop_loss,
-        take_profit: aiSignal.take_profit,
+        entry_price: Math.round(aiSignal.entry_price),
+        stop_loss: Math.round(aiSignal.stop_loss),
+        take_profit: Math.round(aiSignal.take_profit),
         reasoning: aiSignal.reasoning,
         candles_timestamp: latestCandle.open_time,
       },
