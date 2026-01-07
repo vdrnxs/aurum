@@ -127,7 +127,7 @@ aurum/
 │   │   ├── hyperliquid.ts        # Market data fetching
 │   │   ├── indicators.ts         # Technical indicators calculation
 │   │   ├── ai.ts                 # ⭐ Cerebras z.ai-glm-4.6 integration (ACTIVE)
-│   │   ├── openai.ts             # OpenAI integration (legacy/unused)
+│   │   ├── auto-trader.ts        # ⭐ Auto-trading decision logic
 │   │   ├── constants.ts          # ⭐ Centralized config (AI, trading, risk management)
 │   │   ├── sdk-client.ts         # Hyperliquid SDK client + vault management
 │   │   ├── toon.ts               # TOON format converter
@@ -287,11 +287,11 @@ DEFAULT_LEVERAGE: 1                     // No leverage (testnet safety)
 
 ## Auto-Trading System
 
-The `/api/analyze-signals` endpoint includes an automatic trading system (Step 8 in the pipeline).
+The `/api/analyze-signals` endpoint includes an automatic trading system (Step 7 in the pipeline). Auto-trading logic is implemented in [lib/api/auto-trader.ts](lib/api/auto-trader.ts) as a standalone, testable module.
 
 ### Auto-Trade Decision Criteria
 
-A trade is executed automatically if ALL conditions are met:
+A trade is executed automatically if ALL conditions are met (checked in `executeAutoTrade()`):
 
 1. **Auto-trading enabled**: `TRADING_CONFIG.AUTO_TRADE_ENABLED === true`
 2. **Actionable signal**: `signal === 'BUY' | 'STRONG_BUY' | 'SELL' | 'STRONG_SELL'` (HOLD signals skip)
@@ -515,6 +515,7 @@ curl -X POST http://localhost:3000/api/analyze-signals \
 
 ## Code Style Guidelines
 
+### General Principles
 - Follow SOLID and DRY principles
 - Use TypeScript strict mode
 - Prefer functional components with React hooks
@@ -524,7 +525,30 @@ curl -X POST http://localhost:3000/api/analyze-signals \
 - Validate AI responses before saving
 - Always use `@/` import aliases
 
-## Supabase RLS (Row Level Security)
+### Logging Standards
+- Use structured logger from `lib/api/logger.ts` (NOT console.*)
+- Create logger instances: `const log = createLogger('module-name')`
+- Add contextual data to log messages:
+  ```typescript
+  log.info('Order executed', { orderId, size, price })
+  ```
+- Never use `console.log`, `console.error`, etc. in production code
+
+### Utility Functions
+- Centralize symbol conversion utilities in `lib/utils/symbol.ts`:
+  - `toCoinSymbol(symbol)` - Adds `-PERP` suffix (e.g., "BTC" → "BTC-PERP")
+  - `fromCoinSymbol(symbol)` - Removes `-PERP` suffix (e.g., "BTC-PERP" → "BTC")
+- Never use inline string manipulation like `.replace('-PERP', '')`
+
+### Module Organization
+- Extract complex logic into dedicated modules (e.g., `auto-trader.ts`)
+- Keep API routes focused on HTTP handling
+- Separate business logic from routing logic
+- Make modules testable in isolation
+
+## Database & Performance
+
+### Supabase RLS (Row Level Security)
 
 **Frontend Access (anon key)**:
 - ✅ SELECT (read) only
@@ -538,6 +562,28 @@ curl -X POST http://localhost:3000/api/analyze-signals \
 **Why this is secure**:
 - Even if anon key leaks, attackers can only read data
 - Write operations require service role key (backend only)
+
+### Database Migrations
+
+Migrations are stored in `supabase/migrations/` and must be applied manually in Supabase Dashboard.
+
+**Important Migration**: [20250107_add_signals_index.sql](supabase/migrations/20250107_add_signals_index.sql)
+- Creates composite index on `btc_trading_signals(symbol, interval, created_at DESC)`
+- Optimizes frequent queries in `signals-service.ts`
+- Expected speedup: 10-100x depending on table size
+- **Action Required**: Apply this migration in Supabase SQL Editor
+
+### Performance Optimizations
+
+**Singleton Pattern for Environment Variables**:
+```typescript
+// Read CRON_SECRET once at module load time (not on every request)
+const CRON_SECRET = process.env.CRON_SECRET;
+```
+
+**Database Indexes**:
+- Composite indexes for frequent WHERE + ORDER BY queries
+- Symbol + interval filtering is extremely common
 
 ## Deployment (Vercel)
 
@@ -579,7 +625,7 @@ jobs:
 - Check actual positions with `getPositions()`
 
 ### AI Analysis Failing
-- Verify `OPENAI_API_KEY` in environment variables
+- Verify `CEREBRAS_API_KEY` in environment variables
 - Check API key has credits
 - Review Vercel function logs
 - Ensure TOON format is valid
@@ -597,7 +643,7 @@ jobs:
 | Supabase | Free | $0 (up to 500MB) |
 | Vercel | Hobby | $0 |
 | GitHub Actions | Free | $0 (2000 min/month) |
-| OpenAI API | Pay-as-you-go | ~$0.10-$0.50 |
+| Cerebras API | Pay-as-you-go | ~$0.10-$0.50 |
 | **Total** | | **~$0.10-$0.50/month** |
 
 ## Important Notes
