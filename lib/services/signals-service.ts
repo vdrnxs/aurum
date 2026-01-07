@@ -15,7 +15,7 @@ export async function getLatestSignal(
     .single()
 
   if (error) {
-    console.error('Error fetching latest signal:', error)
+    console.error('[SignalsService] Error fetching latest signal:', error)
     return null
   }
 
@@ -36,7 +36,7 @@ export async function getSignalHistory(
     .limit(limit)
 
   if (error) {
-    console.error('Error fetching signal history:', error)
+    console.error('[SignalsService] Error fetching signal history:', error)
     return []
   }
 
@@ -56,7 +56,7 @@ export async function getSignalStats(
     .limit(100)
 
   if (error) {
-    console.error('Error fetching signal stats:', error)
+    console.error('[SignalsService] Error fetching signal stats:', error)
     return {
       totalSignals: 0,
       buySignals: 0,
