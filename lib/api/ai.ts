@@ -190,7 +190,13 @@ function validateSignalLogic(signal: TradingSignal): void {
   const ratio = risk > 0 ? reward / risk : 0;
 
   if (ratio < AI_CONFIG.MIN_RR_RATIO) {
-    console.warn(`[Warning] R:R ratio is ${ratio.toFixed(2)}:1 (target: ${AI_CONFIG.MIN_RR_RATIO}:1). Signal may not be optimal.`);
+    log.warn('R:R ratio below target', {
+      ratio: ratio.toFixed(2),
+      target: AI_CONFIG.MIN_RR_RATIO,
+      entry: signal.entry_price,
+      stopLoss: signal.stop_loss,
+      takeProfit: signal.take_profit,
+    });
   }
 
   // Log round numbers warning (informational only)
@@ -198,6 +204,10 @@ function validateSignalLogic(signal: TradingSignal): void {
     PRICE_VALIDATION.PSYCHOLOGICAL_LEVELS.some(level => price % level === 0);
 
   if (isRoundNumber(signal.stop_loss) || isRoundNumber(signal.take_profit)) {
-    console.warn(`[Warning] Psychological levels detected. SL: ${signal.stop_loss}, TP: ${signal.take_profit}`);
+    log.warn('Psychological levels detected', {
+      stopLoss: signal.stop_loss,
+      takeProfit: signal.take_profit,
+      levels: PRICE_VALIDATION.PSYCHOLOGICAL_LEVELS,
+    });
   }
 }
