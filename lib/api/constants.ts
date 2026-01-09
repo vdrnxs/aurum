@@ -41,7 +41,7 @@ export const TRADING_CONFIG = {
   COIN_SUFFIX: '-PERP',
 
   // Auto-trading configuration
-  AUTO_TRADE_ENABLED: false,  // Set to false to disable auto-trading
+  AUTO_TRADE_ENABLED: true,  // Set to false to disable auto-trading
   MIN_CONFIDENCE_TO_TRADE: 70,  // Only trade signals with confidence >= x0%
 
   // Risk Management (Position Sizing)
