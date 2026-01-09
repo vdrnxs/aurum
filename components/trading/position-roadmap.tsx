@@ -25,6 +25,9 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
   const positionSize = Math.abs(Number(position.size));
 
   // Calculate current price from entry + PnL
+  // For LONG: currentPrice = entry + (pnl / size)
+  // For SHORT: currentPrice = entry - (pnl / size)
+  // Note: PnL already has correct sign (positive = profit, negative = loss)
   const currentPrice = isLong
     ? entryPrice + pnl / positionSize
     : entryPrice - pnl / positionSize;
@@ -59,7 +62,9 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
   const isProfitable = pnl >= 0;
 
   // Calculate price movement from entry
-  const priceChangePercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+  const priceChangePercent = isLong
+    ? ((currentPrice - entryPrice) / entryPrice) * 100
+    : ((entryPrice - currentPrice) / entryPrice) * 100;
 
   // Format price with proper thousands separator
   const formatPrice = (price: number) => {
@@ -70,6 +75,13 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
   const totalRR = riskRewardRatio + 1; // Total parts (risk + reward)
   const leftLinePercent = (1 / totalRR) * 100; // Risk portion
   const rightLinePercent = (riskRewardRatio / totalRR) * 100; // Reward portion
+
+  // For SHORT positions, we need to swap the layout (TP is above entry, SL is below)
+  const leftIsTP = !isLong;
+  const leftPrice = leftIsTP ? tpPrice : slPrice;
+  const rightPrice = leftIsTP ? slPrice : tpPrice;
+  const leftPercentage = leftIsTP ? tpPercentage : slPercentage;
+  const rightPercentage = leftIsTP ? slPercentage : tpPercentage;
 
   // Token icon mapping
   const tokenIcons: Record<string, typeof TokenBTC> = {
@@ -104,37 +116,51 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
       {/* Simplified Horizontal Layout */}
       <div className="p-6">
         <div className="relative flex items-center justify-between">
-          {/* Stop Loss Badge */}
-          {slPrice && (
+          {/* Left Badge (TP for SHORT, SL for LONG) */}
+          {leftPrice && (
             <div className="flex flex-col items-center gap-1 z-10 bg-background px-2">
-              <Badge variant="outline" className="border-red-500 text-red-600 dark:text-red-400 font-bold">
-                SL
+              <Badge
+                variant="outline"
+                className={leftIsTP
+                  ? "border-green-500 text-green-600 dark:text-green-400 font-bold"
+                  : "border-red-500 text-red-600 dark:text-red-400 font-bold"
+                }
+              >
+                {leftIsTP ? 'TP' : 'SL'}
               </Badge>
-              <div className="text-sm font-mono font-bold text-red-600 dark:text-red-400">
-                {formatPrice(slPrice)}
+              <div className={`text-sm font-mono font-bold ${
+                leftIsTP
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {formatPrice(leftPrice)}
               </div>
               <div className="text-xs text-muted-foreground">
-                -{slPercentage}%
+                {leftIsTP ? '+' : '-'}{leftPercentage}%
               </div>
             </div>
           )}
 
           {/* Connection Lines */}
           <div className="absolute left-0 right-0 top-3 flex items-center">
-            {/* Left line (Risk side) */}
+            {/* Left line (Risk side for LONG, Reward side for SHORT) */}
             <div
               className="h-0.5 bg-border relative"
               style={{ width: `${leftLinePercent}%` }}
             >
-              {/* Dot on this line if price moved towards SL */}
-              {!isProfitable && (
+              {/* Dot on this line if price moved in this direction */}
+              {((leftIsTP && isProfitable) || (!leftIsTP && !isProfitable)) && (
                 <div
                   className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                 >
-                  <div className="w-3 h-3 rounded-full bg-red-500 border-2 border-background animate-pulse" />
+                  <div className={`w-3 h-3 rounded-full border-2 border-background animate-pulse ${
+                    isProfitable ? 'bg-green-500' : 'bg-red-500'
+                  }`} />
                   <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs font-bold text-red-600">
-                      {priceChangePercent.toFixed(2)}% (${pnl.toFixed(2)})
+                    <div className={`text-xs font-bold ${
+                      isProfitable ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {isProfitable ? '+' : ''}{priceChangePercent.toFixed(2)}% ({isProfitable ? '+' : ''}${pnl.toFixed(2)})
                     </div>
                   </div>
                 </div>
@@ -151,20 +177,24 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
               </div>
             </div>
 
-            {/* Right line (Reward side) */}
+            {/* Right line (Reward side for LONG, Risk side for SHORT) */}
             <div
               className="h-0.5 bg-border relative"
               style={{ width: `${rightLinePercent}%` }}
             >
-              {/* Dot on this line if price moved towards TP */}
-              {isProfitable && (
+              {/* Dot on this line if price moved in this direction */}
+              {((!leftIsTP && isProfitable) || (leftIsTP && !isProfitable)) && (
                 <div
                   className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                 >
-                  <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-background animate-pulse" />
+                  <div className={`w-3 h-3 rounded-full border-2 border-background animate-pulse ${
+                    isProfitable ? 'bg-green-500' : 'bg-red-500'
+                  }`} />
                   <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs font-bold text-green-600">
-                      +{priceChangePercent.toFixed(2)}% (+${pnl.toFixed(2)})
+                    <div className={`text-xs font-bold ${
+                      isProfitable ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {isProfitable ? '+' : ''}{priceChangePercent.toFixed(2)}% ({isProfitable ? '+' : ''}${pnl.toFixed(2)})
                     </div>
                   </div>
                 </div>
@@ -172,17 +202,27 @@ export function PositionRoadmap({ position, orders }: PositionRoadmapProps) {
             </div>
           </div>
 
-          {/* Take Profit Badge */}
-          {tpPrice && (
+          {/* Right Badge (SL for SHORT, TP for LONG) */}
+          {rightPrice && (
             <div className="flex flex-col items-center gap-1 z-10 bg-background px-2">
-              <Badge variant="outline" className="border-green-500 text-green-600 dark:text-green-400 font-bold">
-                TP
+              <Badge
+                variant="outline"
+                className={leftIsTP
+                  ? "border-red-500 text-red-600 dark:text-red-400 font-bold"
+                  : "border-green-500 text-green-600 dark:text-green-400 font-bold"
+                }
+              >
+                {leftIsTP ? 'SL' : 'TP'}
               </Badge>
-              <div className="text-sm font-mono font-bold text-green-600 dark:text-green-400">
-                {formatPrice(tpPrice)}
+              <div className={`text-sm font-mono font-bold ${
+                leftIsTP
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-green-600 dark:text-green-400'
+              }`}>
+                {formatPrice(rightPrice)}
               </div>
               <div className="text-xs text-muted-foreground">
-                +{tpPercentage}%
+                {leftIsTP ? '-' : '+'}{rightPercentage}%
               </div>
             </div>
           )}
